@@ -1,0 +1,72 @@
+# Demo task: sanity-check a fresh Rocky 9 box. Doesn't require the learner
+# to do anything — every check should pass on a stock Rocky 9 install. Used
+# to verify lee-grade works end-to-end on the target OS before authoring
+# real grading tasks.
+schema_version: 1
+id: demo-host-sanity
+title: Host sanity — fresh Rocky 9
+domain: essential-tools
+track: rhcsa-9
+time_minutes: 0
+description: |
+  This is a smoke test for lee-grade itself. Every check should pass on a
+  stock Rocky 9 box; if anything fails, your environment isn't what
+  lee-grade expects.
+
+checks:
+  - id: passwd-exists
+    description: /etc/passwd exists and is mode 0644
+    hint: chmod 0644 /etc/passwd
+    type: file
+    path: /etc/passwd
+    mode: 0o644
+    owner: root
+    group: root
+    kind: file
+
+  - id: shadow-locked-down
+    description: /etc/shadow exists and is owned by root
+    hint: chown root:root /etc/shadow
+    type: file
+    path: /etc/shadow
+    owner: root
+
+  - id: root-user-exists
+    description: User root exists with UID 0
+    hint: (this should be impossible to fail)
+    type: user
+    name: root
+    uid: 0
+    primary_group: root
+    home: /root
+    shell: /bin/bash
+
+  - id: root-group-exists
+    description: Group root exists with GID 0
+    type: group
+    name: root
+    gid: 0
+
+  - id: wheel-group-exists
+    description: Group wheel exists (sudo membership group on RHEL)
+    hint: groupadd -g 10 wheel
+    type: group
+    name: wheel
+    gid: 10
+
+  - id: passwd-contains-root
+    description: /etc/passwd contains a root entry
+    type: file-content
+    path: /etc/passwd
+    matches: '^root:x:0:0:'
+
+  - id: os-release-is-rocky
+    description: This host identifies as Rocky Linux (or RHEL/CentOS/Fedora)
+    type: file-content
+    path: /etc/os-release
+    matches: 'ID_LIKE=.*"?(rhel|centos|fedora)"?'
+
+  - id: proc-mounts-readable
+    description: /proc/mounts is readable
+    type: file
+    path: /proc/mounts

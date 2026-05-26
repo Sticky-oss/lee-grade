@@ -1,0 +1,37 @@
+# Demonstrates the failure-reporting UX. These checks are crafted to fail
+# on any reasonable host. Used to verify hints, detail, and error paths.
+schema_version: 1
+id: demo-expected-failures
+title: Demo · expected failures
+domain: essential-tools
+track: rhcsa-9
+description: |
+  Intentionally-failing checks to exercise lee-grade's failure UX:
+  missing file, wrong mode, nonexistent user, wrong UID.
+
+checks:
+  - id: nonexistent-file
+    description: /etc/this-file-does-not-exist exists
+    hint: touch /etc/this-file-does-not-exist
+    type: file
+    path: /etc/this-file-does-not-exist
+
+  - id: passwd-wrong-mode
+    description: /etc/passwd is mode 0600 (it isn't on a real Rocky box)
+    hint: chmod 0600 /etc/passwd
+    type: file
+    path: /etc/passwd
+    mode: 0o600
+
+  - id: nonexistent-user
+    description: User mira-from-the-narrative exists
+    hint: useradd -u 9001 mira-from-the-narrative
+    type: user
+    name: mira-from-the-narrative
+
+  - id: root-wrong-uid
+    description: User root has UID 42 (it doesn't — root is 0)
+    hint: (this is intentionally absurd to prove detail rendering)
+    type: user
+    name: root
+    uid: 42
