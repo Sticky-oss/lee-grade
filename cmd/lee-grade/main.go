@@ -51,6 +51,17 @@ func main() {
 		return
 	}
 	if *taskPath == "" && *tasksDir == "" {
+		// Bare `lee-grade` with no flags on a TTY → show the friendly
+		// startup banner so the user discovers what's installed instead
+		// of an error. Anywhere else (piped, scripted, --quiet, --json)
+		// fall through to the usage error so automation isn't surprised.
+		if shouldShowBanner(*taskPath, *tasksDir, *jsonOut, *quiet) {
+			// Color + animation both gated on !--no-color so users who
+			// dislike one disable both with a single flag.
+			useColor := !*noColor
+			printBanner(os.Stdout, useColor, useColor)
+			return
+		}
 		fmt.Fprintln(os.Stderr, "lee-grade: one of --task or --tasks-dir is required")
 		fmt.Fprintln(os.Stderr, "  lee-grade --help  for full usage")
 		os.Exit(2)
