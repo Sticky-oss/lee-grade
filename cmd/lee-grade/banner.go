@@ -14,125 +14,154 @@ import (
 // Each helper takes the local `color` flag and returns either the escape
 // sequence or an empty string. Threading the flag everywhere keeps the
 // caller side small (no global to set/restore).
-func bAccent(c bool) string { if c { return "\x1b[94m" }; return "" } // muted blue
-func bDim(c bool) string    { if c { return "\x1b[90m" }; return "" } // slate dim
-func bAmber(c bool) string  { if c { return "\x1b[33m" }; return "" } // call-to-action amber
-func bGreen(c bool) string  { if c { return "\x1b[32m" }; return "" } // "ready" badge
-func bReset(c bool) string  { if c { return "\x1b[0m" }; return "" }
+func bAmber(c bool) string     { if c { return "\x1b[33m" }; return "" } // industrial / warehouse amber
+func bAmberBold(c bool) string { if c { return "\x1b[1;33m" }; return "" }
+func bGreen(c bool) string     { if c { return "\x1b[32m" }; return "" } // phosphor green status
+func bGreenBold(c bool) string { if c { return "\x1b[1;32m" }; return "" }
+func bDim(c bool) string       { if c { return "\x1b[90m" }; return "" } // slate dim, for separators / prefixes
+func bWhite(c bool) string     { if c { return "\x1b[37m" }; return "" }
+func bReset(c bool) string     { if c { return "\x1b[0m" }; return "" }
 
-// logo is intentionally five lines tall — fits even a short terminal
-// window without scrolling the banner off-screen before it finishes
-// animating. ASCII-only so it renders in every terminal (Windows
-// conhost, GNOME Terminal, iTerm, tmux, etc.) without needing nerd
-// fonts or unicode support.
-var logo = []string{
-	"  _                                       _      ",
-	" | | ___  ___        __ _ _ __ __ _  __ _| | ___ ",
-	" | |/ _ \\/ _ \\_____ / _` | '__/ _` |/ _` | |/ _ \\",
-	" | |  __/  __/_____| (_| | | | (_| | (_| | |  __/",
-	" |_|\\___|\\___|      \\__, |_|  \\__,_|\\__,_|_|\\___|",
-	"                    |___/                         ",
+// Separator line is intentionally pure-ASCII (`=` not `═`) so it renders
+// identically in legacy Windows conhost / cmd.exe / xterm / tmux / iTerm.
+// 73 characters wide — fits an 80-column terminal with a touch of margin.
+const sepLine = "========================================================================="
+
+// bootStep is one line of the simulated boot sequence. The animation
+// prints the prefix instantly, animates a row of dots over `dotMs`
+// milliseconds, then prints `status` + optional `extra`.
+type bootStep struct {
+	elapsed     string        // simulated boot-timer reading, e.g. "0.143"
+	description string        // what the step is doing
+	status      string        // "OK" / "" — empty means "no status, this is the last line"
+	extra       string        // optional trailing detail like "8 modules"
+	dotMs       time.Duration // total time spent animating the dots
 }
 
-// printBanner writes the animated startup banner to w.
+// printBanner writes the Caleston Logistics startup banner to w. Themed
+// to feel like booting an industrial logistics company's audit terminal —
+// matches the lee-lab narrative framing (Mira Okafor / Caleston Logistics
+// / audit-archive.caleston.internal).
 //
 //	color   — emit ANSI escapes; false on --no-color or non-TTY.
-//	animate — reveal one line at a time with a brief delay; false on
-//	          --no-color, non-TTY, or any time we want the banner without
-//	          the wait (e.g. tests).
+//	animate — pause between boot lines for the typewriter / CRT-warmup
+//	          feel; false on --no-color, non-TTY, or in tests.
 //
-// Caller decides WHEN to show the banner; this function only decides HOW.
-//
-// Output is flushed line-by-line via the OS's stdout (unbuffered) so the
-// reveal animation actually shows up in real terminals rather than
-// arriving as one buffered blob at the end.
+// Uses ONLY simple printing + sleep — no cursor movement (`\b`, `\r`,
+// ESC[K), no Unicode glyphs beyond ASCII. That's the compatibility key:
+// legacy Windows PowerShell / cmd.exe / conhost render this identically
+// to Windows Terminal, GNOME Terminal, and tmux.
 func printBanner(w io.Writer, color, animate bool) {
-	logoDelay := 60 * time.Millisecond
-	stepDelay := 120 * time.Millisecond
-	spinnerDelay := 110 * time.Millisecond
-	if !animate {
-		logoDelay = 0
-		stepDelay = 0
-		spinnerDelay = 0
-	}
-
-	for _, line := range logo {
-		fmt.Fprintf(w, "%s%s%s\n", bAccent(color), line, bReset(color))
-		flush(w)
-		if logoDelay > 0 {
-			time.Sleep(logoDelay)
-		}
-	}
-
-	if stepDelay > 0 {
-		time.Sleep(stepDelay)
-	}
-	fmt.Fprintf(w, "%s  RHCSA / RHCE task grader%s  %sv%s%s\n",
-		bDim(color), bReset(color), bAccent(color), version, bReset(color))
+	// ─── Header ──────────────────────────────────────────────────────
+	fmt.Fprintf(w, "%s%s%s\n", bDim(color), sepLine, bReset(color))
+	fmt.Fprintf(w, "  %sCALESTON LOGISTICS%s%s  -  TRANSPORT & WAREHOUSING  -  est. 1987%s\n",
+		bAmberBold(color), bReset(color), bAmber(color), bReset(color))
+	fmt.Fprintf(w, "  %sAudit Archive  -  Operations Terminal  -  /var/audit%s\n",
+		bDim(color), bReset(color))
+	fmt.Fprintf(w, "%s%s%s\n", bDim(color), sepLine, bReset(color))
+	fmt.Fprintln(w)
 	flush(w)
 
-	if stepDelay > 0 {
-		time.Sleep(stepDelay)
+	if animate {
+		time.Sleep(180 * time.Millisecond)
 	}
-	fmt.Fprintf(w, "%s  Companion to lee-lab - same task DSL, real hosts.%s\n",
+
+	// ─── Boot sequence ───────────────────────────────────────────────
+	steps := []bootStep{
+		{"0.001", "firmware self-test", "OK", "", 120 * time.Millisecond},
+		{"0.143", "mounting /var/audit", "OK", "", 180 * time.Millisecond},
+		{"0.287", "loading task definitions", "OK", "", 260 * time.Millisecond},
+		{"0.412", "verifying check engine", "OK",
+			fmt.Sprintf("%d modules", len(check.RegisteredTypes())),
+			220 * time.Millisecond},
+		{"0.501", "terminal ready", "", "", 80 * time.Millisecond},
+	}
+	for _, s := range steps {
+		printBootStep(w, s, color, animate)
+	}
+
+	fmt.Fprintln(w)
+	flush(w)
+
+	if animate {
+		time.Sleep(150 * time.Millisecond)
+	}
+
+	// ─── Operator block (the Mira Okafor / Caleston narrative anchor) ─
+	fmt.Fprintf(w, "  %sOperator   :%s %smira.okafor@audit-archive%s\n",
+		bDim(color), bReset(color), bGreenBold(color), bReset(color))
+	fmt.Fprintf(w, "  %sBuild      :%s %slee-grade v%s%s  %s(real-host grading mode)%s\n",
+		bDim(color), bReset(color), bGreen(color), version, bReset(color),
 		bDim(color), bReset(color))
 	fmt.Fprintln(w)
 	flush(w)
 
-	// Mini boot-status. Use the rotating-bar ASCII spinner (|/-\) so the
-	// glyphs render on every terminal — earlier braille chars (⠋⠼⠿) were
-	// missing from Windows conhost's default fonts and showed as blanks
-	// or ?.
-	checkCount := len(check.RegisteredTypes())
 	if animate {
-		fmt.Fprintf(w, "  %sinitializing check engine ...%s ", bDim(color), bReset(color))
-		flush(w)
-		for _, frame := range []rune{'|', '/', '-', '\\', '|', '/', '-', '\\'} {
-			fmt.Fprintf(w, "%c", frame)
-			flush(w)
-			time.Sleep(spinnerDelay)
-			// One backspace covers the one-cell spinner glyph exactly.
-			fmt.Fprint(w, "\b")
-			flush(w)
-		}
-		// Return to start of line + clear, then print the resolved status.
-		// Two-step (CR then ESC[2K) so it works on the broadest set of
-		// terminals — some old terminals don't honour ESC[2K but every
-		// one honours CR + overwrite.
-		fmt.Fprint(w, "\r\x1b[2K")
-		flush(w)
+		time.Sleep(120 * time.Millisecond)
 	}
-	if color {
-		fmt.Fprintf(w, "  %s[OK] ready%s  %s%d check types registered%s\n",
-			bGreen(color), bReset(color), bDim(color), checkCount, bReset(color))
-	} else {
-		fmt.Fprintf(w, "  [OK] ready  %d check types registered\n", checkCount)
-	}
-	fmt.Fprintln(w)
-	flush(w)
 
-	if stepDelay > 0 {
-		time.Sleep(stepDelay)
-	}
-	fmt.Fprintf(w, "  Try:\n")
-	fmt.Fprintf(w, "    %slee-grade --task <task.yaml>%s   grade one task\n",
+	// ─── Footer + command hints ──────────────────────────────────────
+	fmt.Fprintf(w, "%s%s%s\n", bDim(color), sepLine, bReset(color))
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "  Type:  %slee-grade --task <task.yaml>%s    begin audit\n",
 		bAmber(color), bReset(color))
-	fmt.Fprintf(w, "    %slee-grade --tasks-dir <dir>%s    grade a directory\n",
+	fmt.Fprintf(w, "         %slee-grade --tasks-dir <dir>%s     grade a directory\n",
 		bAmber(color), bReset(color))
-	fmt.Fprintf(w, "    %slee-grade --list-check-types%s   show the check alphabet\n",
-		bAmber(color), bReset(color))
-	fmt.Fprintf(w, "    %slee-grade --help%s               full usage\n",
+	fmt.Fprintf(w, "         %slee-grade --help%s                full command reference\n",
 		bAmber(color), bReset(color))
 	fmt.Fprintln(w)
 	flush(w)
 }
 
-// flush forces the underlying writer to push bytes if it's a *os.File
-// (the only writer the CLI uses today). Without this, the animation
-// frames can buffer up and arrive all at once.
-func flush(w io.Writer) {
-	if f, ok := w.(*os.File); ok {
-		_ = f.Sync()
+// printBootStep prints one boot line with progressive dots between the
+// description and the OK status. Pure forward-only output — no cursor
+// tricks — so it renders identically in any terminal that handles \n.
+//
+// Layout (column-aligned):
+//
+//	[ X.XXXs ] description ...... OK   extra
+//
+// Total target width before "OK" is 60 columns; we pad with dots to hit
+// that, then write the status. Aligning the OKs makes the sequence read
+// as a "real" boot log even though every line is the same height.
+func printBootStep(w io.Writer, s bootStep, color, animate bool) {
+	prefix := fmt.Sprintf("[ %ss ] %s ", s.elapsed, s.description)
+	fmt.Fprint(w, bDim(color))
+	fmt.Fprint(w, prefix)
+	fmt.Fprint(w, bReset(color))
+	flush(w)
+
+	// Pad to 60 cols with dots, animated when in TTY mode.
+	const target = 60
+	dotsNeeded := target - len(prefix)
+	if dotsNeeded < 3 {
+		dotsNeeded = 3
+	}
+	if animate && s.dotMs > 0 {
+		per := s.dotMs / time.Duration(dotsNeeded)
+		fmt.Fprint(w, bDim(color))
+		for i := 0; i < dotsNeeded; i++ {
+			fmt.Fprint(w, ".")
+			flush(w)
+			time.Sleep(per)
+		}
+		fmt.Fprint(w, bReset(color))
+	} else {
+		fmt.Fprintf(w, "%s%s%s", bDim(color), strings.Repeat(".", dotsNeeded), bReset(color))
+	}
+
+	if s.status != "" {
+		fmt.Fprintf(w, " %s%s%s", bGreenBold(color), s.status, bReset(color))
+	}
+	if s.extra != "" {
+		fmt.Fprintf(w, "   %s%s%s", bDim(color), s.extra, bReset(color))
+	}
+	fmt.Fprintln(w)
+	flush(w)
+
+	if animate {
+		// Brief inter-step pause so boot lines don't feel rushed.
+		time.Sleep(60 * time.Millisecond)
 	}
 }
 
@@ -169,10 +198,15 @@ func diagnoseTTY() {
 	)
 }
 
-// stringsRepeat is a one-line wrapper kept to limit cross-package imports
-// in this tiny file. (Avoiding pulling in strings.Repeat from the strings
-// package keeps the diff small if we later want to vendor banner.go.)
-var _ = strings.Repeat // silence unused warning when stripAnsi is removed
+// flush forces the underlying writer to push bytes if it's a *os.File
+// (the only writer the CLI uses today). Without this, the animation
+// frames can buffer up and arrive all at once — defeating the whole
+// "boot sequence" effect.
+func flush(w io.Writer) {
+	if f, ok := w.(*os.File); ok {
+		_ = f.Sync()
+	}
+}
 
 // stripAnsi is a small helper so tests can compare banner output text
 // without ANSI codes confusing the assertions. Not used at runtime.
