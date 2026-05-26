@@ -55,6 +55,7 @@ func main() {
 		// startup banner so the user discovers what's installed instead
 		// of an error. Anywhere else (piped, scripted, --quiet, --json)
 		// fall through to the usage error so automation isn't surprised.
+		diagnoseTTY()
 		if shouldShowBanner(*taskPath, *tasksDir, *jsonOut, *quiet) {
 			// Color + animation both gated on !--no-color so users who
 			// dislike one disable both with a single flag.
