@@ -1,5 +1,3 @@
 bin/
-*.exe
-*.test
-*.out
-.DS_Store
+typescript
+*.log
