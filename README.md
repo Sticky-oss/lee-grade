@@ -33,6 +33,19 @@ The killer feature (coming soon): `--reboot-test` actually reboots the
 host and re-grades after boot, verifying the EX200's most-tested
 rubric ("configurations must persist after reboot") on real hardware.
 
+## Binaries
+
+This repo ships two CLIs:
+
+- **`lee-grade`** — the original headless grader. Reads a task YAML,
+  inspects the host, prints/JSON the pass/fail summary, exit code
+  reflects the result. Best for CI, scripts, and headless verification.
+- **`lee-lab`** — terminal-native sibling of the lee-lab browser sim.
+  Drops the learner into a real bubbletea TUI with Mira's task brief
+  on the left, a real PTY bash subshell on the right, and live
+  re-grading on every Enter. Closest thing to the browser experience
+  for people who'd rather stay in their terminal.
+
 ## Install
 
 Pre-built binaries: see [Releases](https://github.com/Sticky-oss/lee-grade/releases).
@@ -73,6 +86,26 @@ lee-grade --task task1.yaml --quiet && echo PASS
 # List the alphabet of registered check types
 lee-grade --list-check-types
 ```
+
+### Lab mode (interactive TUI)
+
+```bash
+# Drop into the live lab — task brief on the left, real bash on the right
+lee-lab --task tasks/rhcsa-9/demo-host-sanity.yaml
+```
+
+Hotkeys inside the TUI:
+
+- `Ctrl+G` — manual re-grade (Enter also auto-re-grades after each command)
+- `Ctrl+R` — clear the right pane's scrollback (host state unchanged)
+- `Ctrl+Q` — quit and print final summary
+- `F1`     — toggle the inline help footer
+- everything else — forwarded to bash
+
+**Caveat:** lee-lab acts on the **real host** — there is no sandbox. Use
+a throwaway Rocky 9 VM or container, not your daily-driver laptop. The
+browser-based lee-lab simulator at <https://github.com/Sticky-oss/lee-lab>
+is the safe-sandbox alternative if you don't have a VM handy.
 
 Exit codes follow standard Unix conventions: `0` if every task fully
 passed, `1` if any check failed, `2` for argument or task-file errors.
