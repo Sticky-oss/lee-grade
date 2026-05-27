@@ -1,18 +1,21 @@
 // view.go renders the bubbletea Model into a single string per frame.
 //
-// Layout (approximate, scales with terminal size):
+// Layout mirrors lee-lab's three-pane browser layout: task brief on the
+// left, terminal in the middle, progress (per-check status) on the
+// right. Widths default to ~28% / 44% / 28% and clamp to a usable
+// minimum each. On a terminal narrower than ~100 cols we collapse to
+// two panes (brief+progress merged on the left, terminal on the right)
+// so each pane stays readable.
 //
 //	┌─ lee-lab — Caleston Audit-Archive ─────────── task1-users · 4/6 ─┐
-//	│ TASK BRIEF (~40% width)        │ SHELL OUTPUT (~60% width)       │
-//	│                                │                                 │
-//	│ > Mira's narrative ...         │ [root@host ~]# id alice         │
-//	│                                │ uid=1001(alice) ...             │
-//	│ Checks:                        │ [root@host ~]# _                │
-//	│   ✓ Group sysadmins exists     │                                 │
-//	│   ✗ User bob exists ...        │                                 │
-//	│     hint: useradd -u 2002 bob  │                                 │
-//	│                                │                                 │
-//	└────────────────────────────────┴─────────────────────────────────┘
+//	│ TASK         │ TERMINAL                  │ CHECKS  4/6           │
+//	│              │                           │                       │
+//	│ Mira's       │ [root@host ~]# id alice   │ ✓ Group sysadmins     │
+//	│ narrative... │ uid=1001(alice) ...       │ ✓ User alice UID 2001 │
+//	│              │ [root@host ~]# _          │ ✗ User bob exists     │
+//	│              │                           │   hint: useradd ...   │
+//	│              │                           │ ✓ alice in wheel      │
+//	└──────────────┴───────────────────────────┴───────────────────────┘
 //	Ctrl+G grade · Ctrl+R clear · Ctrl+Q quit · F1 help
 package tui
 
@@ -100,26 +103,75 @@ func (m *Model) renderFooter() string {
 	return footerStyle.Width(m.width).Render(hints)
 }
 
-// renderBody composes the brief pane (left) and shell pane (right)
-// side-by-side. Both panes get the same height; widths are 40%/60%.
+// Layout breakpoint: below this many columns we drop from 3 panes to 2
+// so each remaining pane has at least ~30 usable cols.
+const narrowLayoutWidth = 100
+
+// renderBody composes the body region. Three panes on wide terminals
+// (brief / terminal / progress); two on narrow ones (brief+progress
+// merged into the left rail, terminal on the right).
 func (m *Model) renderBody() string {
 	bodyH := m.height - 2 // -2 for header + footer rows
 	if bodyH < 5 {
 		bodyH = 5
 	}
-	briefW := m.width * 4 / 10
-	shellW := m.width - briefW
-	if briefW < 20 {
-		briefW = 20
+	if m.width < narrowLayoutWidth {
+		return m.renderBodyTwoPane(bodyH)
 	}
-	if shellW < 20 {
-		shellW = 20
+	return m.renderBodyThreePane(bodyH)
+}
+
+// renderBodyThreePane is the lee-lab-style layout: brief left, terminal
+// middle, progress (check status) right. Widths ~28/44/28 with each
+// pane floored at 20 cols.
+func (m *Model) renderBodyThreePane(bodyH int) string {
+	briefW := m.width * 28 / 100
+	progressW := m.width * 28 / 100
+	shellW := m.width - briefW - progressW
+	if briefW < 24 {
+		briefW = 24
+	}
+	if progressW < 24 {
+		progressW = 24
+	}
+	if shellW < 30 {
+		shellW = 30
 	}
 
 	brief := briefBorder.
 		Width(briefW - 2).
 		Height(bodyH - 2).
-		Render(m.briefContent(briefW - 4))
+		Render(m.briefDescriptionContent(briefW - 4))
+
+	shell := shellBorder.
+		Width(shellW - 2).
+		Height(bodyH - 2).
+		Render(m.shellContent(shellW - 4))
+
+	progress := briefBorder.
+		Width(progressW - 2).
+		Height(bodyH - 2).
+		Render(m.progressContent(progressW - 4))
+
+	return lipgloss.JoinHorizontal(lipgloss.Top, brief, shell, progress)
+}
+
+// renderBodyTwoPane is the fallback for narrow terminals — brief +
+// check status stack in the left rail, terminal takes the right.
+func (m *Model) renderBodyTwoPane(bodyH int) string {
+	briefW := m.width * 4 / 10
+	shellW := m.width - briefW
+	if briefW < 24 {
+		briefW = 24
+	}
+	if shellW < 24 {
+		shellW = 24
+	}
+
+	brief := briefBorder.
+		Width(briefW - 2).
+		Height(bodyH - 2).
+		Render(m.briefStackedContent(briefW - 4))
 
 	shell := shellBorder.
 		Width(shellW - 2).
@@ -129,15 +181,54 @@ func (m *Model) renderBody() string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, brief, shell)
 }
 
-// briefContent assembles the task description + check status list.
-func (m *Model) briefContent(innerW int) string {
+// briefDescriptionContent renders ONLY the task description (3-pane
+// layout — checks live in the right pane).
+func (m *Model) briefDescriptionContent(innerW int) string {
 	var b strings.Builder
-	// Description gets a label header.
+	b.WriteString(headerStyle.Render("TASK"))
+	b.WriteString("\n\n")
+	b.WriteString(wrapText(m.t.Description, innerW))
+	return b.String()
+}
+
+// progressContent renders the per-check ✓/✗ list with hints under
+// failing rows. Designed to read at a glance — the learner's eye sweeps
+// from terminal output → right pane to see whether the last command
+// flipped a check.
+func (m *Model) progressContent(innerW int) string {
+	var b strings.Builder
+	// Header line includes the running score so it doubles as a
+	// progress badge.
+	score := "..."
+	if m.result != nil {
+		score = fmt.Sprintf("%d/%d", m.result.Passed, m.result.Total)
+	}
+	b.WriteString(headerStyle.Render(fmt.Sprintf("CHECKS  %s", score)))
+	b.WriteString("\n\n")
+	if m.result == nil {
+		b.WriteString(checkHint.Render("(grading…)"))
+		return b.String()
+	}
+	for _, r := range m.result.Checks {
+		b.WriteString(renderCheckLine(r, innerW))
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
+// briefStackedContent is the narrow-layout left rail — description on
+// top, checks below. Mirrors the three-pane content but stacked.
+func (m *Model) briefStackedContent(innerW int) string {
+	var b strings.Builder
 	b.WriteString(headerStyle.Render("TASK"))
 	b.WriteString("\n\n")
 	b.WriteString(wrapText(m.t.Description, innerW))
 	b.WriteString("\n\n")
-	b.WriteString(headerStyle.Render("CHECKS"))
+	score := "..."
+	if m.result != nil {
+		score = fmt.Sprintf("%d/%d", m.result.Passed, m.result.Total)
+	}
+	b.WriteString(headerStyle.Render(fmt.Sprintf("CHECKS  %s", score)))
 	b.WriteString("\n")
 	if m.result == nil {
 		b.WriteString(checkHint.Render("(grading…)"))

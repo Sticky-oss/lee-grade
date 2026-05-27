@@ -151,18 +151,25 @@ func (m *Model) appendPty(b []byte) {
 }
 
 // shellPaneDims returns the (cols, rows) the PTY should report to the
-// shell so bash's line-wrap matches what we render. The right pane
-// occupies roughly the right 60% of the screen, minus 1-col borders.
+// shell so bash's line-wrap matches what we render. Must stay in sync
+// with the width math in view.go's renderBodyThreePane /
+// renderBodyTwoPane (~44% on wide layouts, ~60% on narrow).
 func (m *Model) shellPaneDims() (cols, rows int) {
 	if m.width == 0 {
 		return 80, 24
 	}
-	cols = (m.width * 6 / 10) - 2
+	if m.width < narrowLayoutWidth {
+		// Narrow: terminal takes the right ~60% of the screen.
+		cols = (m.width * 6 / 10) - 2
+	} else {
+		// Wide three-pane: terminal is the middle ~44% (100 - 28*2).
+		cols = (m.width * 44 / 100) - 2
+	}
 	if cols < 20 {
 		cols = 20
 	}
 	// 4 rows reserved for the header + footer + status. Render area
-	// is the rest. Match the right-pane height in View().
+	// is the rest.
 	rows = m.height - 4
 	if rows < 5 {
 		rows = 5

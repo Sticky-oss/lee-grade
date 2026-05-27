@@ -87,13 +87,18 @@ func TestAppendPty_TruncatesToCapAtNewlineBoundary(t *testing.T) {
 }
 
 func TestShellPaneDims_ClampsForSmallTerminals(t *testing.T) {
+	// Wide path: terminal pane is the middle ~44% of the three-pane
+	// layout. Narrow path: terminal pane is the right ~60% of the
+	// two-pane fallback. Both floor at 20×5.
 	cases := []struct {
 		name              string
 		w, h              int
 		wantCols, wantRow int
 	}{
-		{"tiny terminal floors at 20×5", 30, 8, 20, 5},
-		{"100×30 → 58×26 (60% width minus borders)", 100, 30, 58, 26},
+		{"tiny terminal floors at 20×5 (narrow path)", 30, 8, 20, 5},
+		{"99×30 — narrow path, ~60% width (=57 cols)", 99, 30, 57, 26},
+		{"100×30 — wide path, ~44% width (=42 cols)", 100, 30, 42, 26},
+		{"160×40 wide — 44% of 160 minus borders = 68 cols", 160, 40, 68, 36},
 		{"zero size returns 80×24 default", 0, 0, 80, 24},
 	}
 	for _, c := range cases {
