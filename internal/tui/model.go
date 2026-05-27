@@ -32,14 +32,15 @@ const ptyScrollbackBytes = 8 * 1024
 
 // Model is the bubbletea Model.
 type Model struct {
-	t        *task.Task
-	result   *check.TaskResult
-	pty      *PtySession
-	ptyBuf   []byte // accumulated PTY output (truncated to ptyScrollbackBytes)
-	width    int
-	height   int
-	showHelp bool
-	quitting bool
+	t           *task.Task
+	result      *check.TaskResult
+	pty         *PtySession
+	ptyBuf      []byte // accumulated PTY output (truncated to ptyScrollbackBytes)
+	width       int
+	height      int
+	showHelp    bool
+	quitting    bool
+	passthrough bool // true while vim/nano/etc owns the terminal
 }
 
 // NewModel constructs a Model around a loaded Task. The PTY is spawned
@@ -86,6 +87,33 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.appendPty([]byte(v))
 		// Re-issue the read pump so we keep getting subsequent chunks.
 		return m, m.pty.ReadLoop()
+
+	case passthroughEnteredMsg:
+		// Any pre-sequence bytes flow to the normal pane FIRST so the
+		// prompt that preceded the vim launch is preserved when we
+		// resume. Then we hand the screen to the PTY: ExitAltScreen
+		// drops bubbletea's renderer + alt-screen, and runPassthrough
+		// takes over with raw-mode stdin ↔ PTY ↔ raw stdout.
+		m.appendPty([]byte(v.bytesBeforeSeq))
+		m.passthrough = true
+		return m, tea.Sequence(
+			tea.ExitAltScreen,
+			runPassthrough(m.pty, m.pty.Scan, m.pty.altInitial),
+		)
+
+	case passthroughDoneMsg:
+		// Vim / nano / etc exited. We already emitted the alt-screen-
+		// exit sequence (the PTY did, and we forwarded). Now take
+		// back the terminal: re-enter alt-screen, resume the
+		// renderer, re-issue the PTY read pump for normal bytes,
+		// and force a re-grade because the user may have just saved
+		// a config file that flips a check.
+		m.passthrough = false
+		return m, tea.Sequence(
+			tea.EnterAltScreen,
+			m.pty.ReadLoop(),
+			gradeCmd(m.t),
+		)
 
 	case ptyClosedMsg:
 		// Subshell exited — fold the TUI cleanly. The user typically

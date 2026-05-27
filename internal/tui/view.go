@@ -66,6 +66,14 @@ func (m *Model) View() string {
 	if m.quitting {
 		return "\nlee-lab: shutting down.\n"
 	}
+	if m.passthrough {
+		// Vim / nano / etc has the screen. Return an empty string so
+		// bubbletea's renderer paints nothing — runPassthrough is
+		// writing to os.Stdout directly. (We can't fully suppress
+		// bubbletea's frame loop, but an empty View means no
+		// ink hits the terminal except what the subprogram emits.)
+		return ""
+	}
 	if m.width == 0 {
 		// Pre-first-frame; bubbletea sends a WindowSizeMsg right away
 		// so this only renders for a single frame at startup.

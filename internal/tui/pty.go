@@ -34,9 +34,21 @@ type ptyClosedMsg struct{ err error }
 // Methods are safe to call from the bubbletea Update goroutine; the
 // read pump runs in a dedicated goroutine and sends ptyOutputMsg via
 // tea.Program.Send.
+//
+// The Scanner field tracks whether the subprocess inside the PTY is
+// currently in alt-screen mode (vim / nano / less / htop / …). When it
+// flips true, Update releases the terminal and hands it directly to
+// the PTY for the duration; when it flips false, bubbletea takes it
+// back. See altscreen.go for the full design.
 type PtySession struct {
 	cmd  *exec.Cmd
 	ptmx *os.File // master side of the PTY pair
+	Scan *Scanner
+	// altInitial buffers bytes that arrived in the same read AS the
+	// alt-screen-enter sequence but came AFTER it. The passthrough
+	// goroutine grabs them on startup so vim's opening paint isn't
+	// truncated. Cleared after each handoff.
+	altInitial []byte
 }
 
 // NewPty spawns `bash -i` on a PTY. Interactive mode is what produces
@@ -57,16 +69,21 @@ func NewPty() (*PtySession, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &PtySession{cmd: c, ptmx: ptmx}, nil
+	return &PtySession{cmd: c, ptmx: ptmx, Scan: NewScanner()}, nil
 }
 
-// ReadLoop returns a tea.Cmd that reads ONE chunk from the PTY and emits
-// it as a ptyOutputMsg. The caller (Update) re-issues the Cmd on every
-// receipt — that's how bubbletea models long-running event sources.
+// ReadLoop returns a tea.Cmd that reads ONE chunk from the PTY and
+// emits either:
+//   - ptyOutputMsg for normal text (drained to the right-pane viewport)
+//   - passthroughEnteredMsg when an alt-screen-enter sequence is
+//     detected, with any pre-sequence bytes still drained normally
 //
-// 4 KiB chunks are large enough for normal command output (ls, cat) and
-// small enough to keep the Update loop responsive on bursty output (a
-// `cat /var/log/messages` doesn't freeze the UI).
+// The caller (Update) re-issues ReadLoop on every receipt of
+// ptyOutputMsg; on passthroughEnteredMsg it switches to runPassthrough
+// instead, and re-issues ReadLoop only after passthroughDoneMsg.
+//
+// 4 KiB chunks are large enough for normal command output and small
+// enough to keep the Update loop responsive on bursty output.
 func (p *PtySession) ReadLoop() tea.Cmd {
 	return func() tea.Msg {
 		buf := make([]byte, 4096)
@@ -77,7 +94,21 @@ func (p *PtySession) ReadLoop() tea.Cmd {
 			}
 			return ptyClosedMsg{err}
 		}
-		return ptyOutputMsg(buf[:n])
+		// Scan for alt-screen-enter. On hit, the bytes BEFORE the
+		// sequence flow to the normal pane (via the msg's
+		// bytesBeforeSeq); the bytes AFTER are buffered inside the
+		// Scanner and the passthrough goroutine picks them up via
+		// its initialBytes path.
+		before, found, after := p.Scan.ScanEnter(buf[:n])
+		if found {
+			// Stash the after-bytes on the session so Update can pass
+			// them into runPassthrough. We use a small dedicated field
+			// (not the scanner's tail) so the carry-bytes-across-reads
+			// logic stays independent of the enter/exit hand-off.
+			p.altInitial = append(p.altInitial[:0], after...)
+			return passthroughEnteredMsg{bytesBeforeSeq: before}
+		}
+		return ptyOutputMsg(before)
 	}
 }
 
