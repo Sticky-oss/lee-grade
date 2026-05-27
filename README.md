@@ -107,6 +107,13 @@ a throwaway Rocky 9 VM or container, not your daily-driver laptop. The
 browser-based lee-lab simulator at <https://github.com/Sticky-oss/lee-lab>
 is the safe-sandbox alternative if you don't have a VM handy.
 
+Full-screen TUI subprograms (`vi`, `nano`, `less`, `htop`, …) render
+cleanly: when the embedded PTY emits an alt-screen-enter sequence, the
+TUI hands the terminal directly to the subprogram for the duration and
+takes it back when the subprogram exits. No glitchy repaint, no escape
+sequences leaking into the right pane. The three-pane chrome reappears
+the moment you `:wq`.
+
 Exit codes follow standard Unix conventions: `0` if every task fully
 passed, `1` if any check failed, `2` for argument or task-file errors.
 
