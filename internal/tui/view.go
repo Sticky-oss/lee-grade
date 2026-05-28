@@ -271,19 +271,17 @@ func renderCheckLine(r check.Result, innerW int) string {
 	return wrapText(line, innerW)
 }
 
-// shellContent renders the accumulated PTY output. We pass the raw
-// bytes through string(); lipgloss respects ANSI sequences embedded in
-// strings, so bash colors come through. Cursor-position sequences are
-// dropped silently by lipgloss's width accounting.
-//
-// We trim the leading bytes if the buffer is taller than the pane so the
-// visible portion is "the tail" — i.e. what bash just emitted, which is
-// what the learner wants to see.
+// shellContent renders the accumulated PTY output. Raw bytes are passed
+// through sanitizePtyForViewport which strips cursor-motion / line-clear
+// sequences and bare \r while preserving SGR colours — without the
+// strip, \r in the bash prompt jumps the terminal cursor to column 0 of
+// the current row (which is inside the LEFT pane after JoinHorizontal),
+// causing bash prompts to overwrite the task description.
 func (m *Model) shellContent(_ int) string {
 	if len(m.ptyBuf) == 0 {
 		return checkHint.Render("(bash starting up…)")
 	}
-	return string(m.ptyBuf)
+	return sanitizePtyForViewport(m.ptyBuf)
 }
 
 // wrapText hard-wraps a long string at innerW columns. lipgloss has its
