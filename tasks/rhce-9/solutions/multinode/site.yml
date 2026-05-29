@@ -1,0 +1,33 @@
+---
+# Worked solution for ansible-multinode-demo. Targets the whole [managed]
+# group (node1, node2) and uses only declarative ansible-core builtin modules,
+# so a second run reports changed=0 on every node — the fleet is idempotent.
+# No package installs, so it converges fast and needs no node-side repo access.
+- name: Configure every managed node in the fleet
+  hosts: managed
+  become: true
+  tasks:
+    - name: Ensure the lab directory exists
+      ansible.builtin.file:
+        path: /etc/lee-fleet
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Each node carries an identity file with its own hostname
+      ansible.builtin.copy:
+        # inventory_hostname differs per node, so node1 and node2 get distinct
+        # content from the SAME task — and copy stays declarative, so a re-run
+        # reports changed=0.
+        content: "node = {{ inventory_hostname }}\nsite = LEE practice lab\n"
+        dest: /etc/lee-fleet/node.conf
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Ensure the leeops service account exists on every node
+      ansible.builtin.user:
+        name: leeops
+        state: present
+        shell: /bin/bash

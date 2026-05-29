@@ -1,0 +1,42 @@
+# RHCE (EX294) track: idempotent configuration across a MULTI-NODE fleet.
+#
+# The single-VM tasks prove the grading machinery with localhost; this one
+# targets a real managed-node topology — the control node (the Rocky VM)
+# driving two podman-hosted managed nodes (node1, node2) over SSH, exactly the
+# EX294 shape. The signature rubric is unchanged: the play must converge EVERY
+# node and be idempotent. The ansible-playbook check runs the play twice and
+# requires the second run to report changed=0 — and its PLAY RECAP parser sums
+# the counters across ALL hosts, so "idempotent" here means idempotent across
+# the whole fleet, not just one box.
+#
+# Topology + inventory are stood up by labs/multinode-setup.sh (rootful podman,
+# systemd+sshd Rocky containers on a leenet bridge); it writes the inventory +
+# ansible.cfg this task's dir expects.
+#
+# Worked solution: tasks/rhce-9/solutions/multinode/site.yml (drop into
+# /home/lee/multinode/). Declarative modules only — no package downloads — so
+# it converges fast and idempotently on every node.
+schema_version: 1
+id: ansible-multinode-demo
+title: Ansible — idempotent fleet config across managed nodes
+domain: ansible-playbooks
+track: rhce-9
+time_minutes: 20
+description: |
+  Write an Ansible playbook site.yml (run from /home/lee/multinode) that
+  configures EVERY managed node (node1 and node2) and is fully idempotent:
+    - ensures the directory /etc/lee-fleet exists
+    - deploys /etc/lee-fleet/node.conf containing a line "node = <hostname>"
+      derived from each node's own inventory_hostname, plus a shared
+      "site = LEE practice lab" line
+    - ensures a service account user "leeops" exists on every node
+  A second run of the playbook must report no changes on any node.
+
+checks:
+  - id: multinode-playbook-idempotent
+    description: site.yml converges every managed node and is idempotent (a second run changes nothing on any host)
+    hint: 'use declarative modules only (file/copy with content/user), then re-run: ansible-playbook -i inventory site.yml'
+    type: ansible-playbook
+    dir: /home/lee/multinode
+    playbook: site.yml
+    inventory: inventory
