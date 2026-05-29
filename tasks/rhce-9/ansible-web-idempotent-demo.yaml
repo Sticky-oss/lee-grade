@@ -1,0 +1,53 @@
+# Demo task for the RHCE (EX294) track: grading an Ansible playbook.
+#
+# The signature RHCE skill is writing a playbook that converges a host to a
+# desired state AND is idempotent. This task runs the learner's playbook
+# (type: ansible-playbook runs it twice and requires the second run to report
+# changed=0) and then verifies the *resulting* host state with the same
+# ordinary checks used for RHCSA — because a managed node is just a Rocky host.
+#
+# Worked solution: tasks/rhce-9/solutions/web/ (web.yml + inventory + ansible.cfg)
+# Run against the Rocky 9 VM with ansible-core installed, not WSL.
+schema_version: 1
+id: ansible-web-idempotent-demo
+title: Ansible — idempotent web server playbook
+domain: ansible-playbooks
+track: rhce-9
+time_minutes: 15
+description: |
+  Write an Ansible playbook web.yml (run from /home/lee/ansible) that brings up
+  a basic web server on the managed host and is fully idempotent:
+    - installs the httpd package
+    - enables httpd and starts it now
+    - deploys /var/www/html/index.html containing "LEE practice lab"
+  A second run of the playbook must report no changes.
+
+checks:
+  - id: web-playbook-idempotent
+    description: web.yml runs clean and is idempotent (a second run changes nothing)
+    hint: 'make every task declarative, then re-run: ansible-playbook -i inventory web.yml'
+    type: ansible-playbook
+    dir: /home/lee/ansible
+    playbook: web.yml
+    inventory: inventory
+
+  - id: httpd-installed
+    description: the httpd package is installed
+    hint: 'ansible.builtin.dnf: { name: httpd, state: present }'
+    type: package-installed
+    name: httpd
+
+  - id: httpd-enabled-active
+    description: httpd is enabled at boot and running now
+    hint: 'ansible.builtin.service: { name: httpd, enabled: true, state: started }'
+    type: service-state
+    unit: httpd
+    enabled: true
+    active: true
+
+  - id: index-html-content
+    description: /var/www/html/index.html contains the lab marker text
+    hint: 'ansible.builtin.copy a file to /var/www/html/index.html containing "LEE practice lab"'
+    type: file-content
+    path: /var/www/html/index.html
+    contains: "LEE practice lab"

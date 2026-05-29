@@ -1,0 +1,25 @@
+---
+# Worked solution for ansible-web-idempotent-demo.
+# Uses only ansible-core builtin modules — no Galaxy collections required.
+- name: Configure a basic, idempotent web server
+  hosts: web
+  become: true
+  tasks:
+    - name: Install the httpd package
+      ansible.builtin.dnf:
+        name: httpd
+        state: present
+
+    - name: Enable httpd at boot and start it now
+      ansible.builtin.service:
+        name: httpd
+        enabled: true
+        state: started
+
+    - name: Deploy the landing page
+      ansible.builtin.copy:
+        content: "Welcome to the LEE practice lab\n"
+        dest: /var/www/html/index.html
+        owner: root
+        group: root
+        mode: "0644"
