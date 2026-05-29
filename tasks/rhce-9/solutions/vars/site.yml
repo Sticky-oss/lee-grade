@@ -1,0 +1,36 @@
+---
+# Worked solution for ansible-vars-loop-demo.
+# Uses only ansible-core builtin modules — no Galaxy collections required.
+- name: Provision config files from a list variable using a loop
+  hosts: managed
+  become: true
+  vars:
+    # A list variable: each item is a dict carrying the file's name and its unit
+    # value. The loop below walks this list, so adding a fourth unit means one
+    # more line here — not a fourth copy task.
+    units:
+      - name: alpha
+        unit: alpha
+      - name: bravo
+        unit: bravo
+      - name: charlie
+        unit: charlie
+  tasks:
+    - name: Ensure the demo directory exists
+      ansible.builtin.file:
+        path: /etc/lee-demo
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Write one config file per unit from the list variable
+      ansible.builtin.copy:
+        # content: keeps this fully declarative, so a re-run reports changed=0.
+        # item.name / item.unit come from each dict in the units list.
+        content: "unit = {{ item.unit }}\nowner = LEE practice lab\n"
+        dest: "/etc/lee-demo/{{ item.name }}.conf"
+        owner: root
+        group: root
+        mode: "0644"
+      loop: "{{ units }}"

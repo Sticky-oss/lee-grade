@@ -1,0 +1,4 @@
+# Single managed node: the box itself, via a local connection. When the
+# multi-node RHCE topology lands, this becomes real SSH targets.
+[managed]
+localhost ansible_connection=local

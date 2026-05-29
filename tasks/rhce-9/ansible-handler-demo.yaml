@@ -1,0 +1,56 @@
+# Demo task for the RHCE (EX294) track: Ansible handlers.
+#
+# Handlers are the RHCE idiom for "do X only when something changed" — most
+# often "restart this service when its config changed". A task fires a handler
+# with `notify`; the handler runs once, at the end of the play, ONLY if the
+# notifying task reported changed. So on a second run the config is already in
+# place, the copy reports ok (not changed), the handler is never notified, and
+# nothing restarts. That is exactly what makes the play idempotent: the
+# ansible-playbook check runs the playbook twice and requires the second run to
+# report changed=0. We then verify the resulting host state with the same
+# ordinary checks used for RHCSA — because a managed node is just a Rocky host.
+#
+# Worked solution: tasks/rhce-9/solutions/handler/ (site.yml + inventory + ansible.cfg)
+# Run against the Rocky 9 VM with ansible-core installed, not WSL.
+schema_version: 1
+id: ansible-handler-demo
+title: Ansible — handler restarts a service on change
+domain: ansible-playbooks
+track: rhce-9
+time_minutes: 15
+description: |
+  Write an Ansible playbook site.yml (run from /home/lee/rhce/handler) that
+  configures httpd and uses a handler to restart it only when its config
+  changes, and is fully idempotent:
+    - installs the httpd package
+    - enables httpd and starts it now
+    - deploys a drop-in config /etc/httpd/conf.d/lee.conf containing the marker
+      "# LEE demo" and a benign directive (e.g. ServerTokens Prod)
+    - the config task uses `notify` to trigger a handler named "restart httpd"
+      that restarts httpd ONLY when the config changes
+  A second run of the playbook must report no changes (the handler must not
+  fire, and httpd must not restart).
+
+checks:
+  - id: handler-playbook-idempotent
+    description: site.yml runs clean and is idempotent (a second run changes nothing)
+    hint: 'make every task declarative and notify the handler; then re-run: ansible-playbook -i inventory site.yml'
+    type: ansible-playbook
+    dir: /home/lee/rhce/handler
+    playbook: site.yml
+    inventory: inventory
+
+  - id: httpd-enabled-active
+    description: httpd is enabled at boot and running now
+    hint: 'ansible.builtin.service: { name: httpd, enabled: true, state: started }'
+    type: service-state
+    unit: httpd
+    enabled: true
+    active: true
+
+  - id: dropin-config-content
+    description: /etc/httpd/conf.d/lee.conf contains the LEE demo marker
+    hint: 'ansible.builtin.copy a config to /etc/httpd/conf.d/lee.conf containing "# LEE demo", and notify the restart handler'
+    type: file-content
+    path: /etc/httpd/conf.d/lee.conf
+    contains: "# LEE demo"

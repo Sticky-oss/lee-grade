@@ -1,0 +1,58 @@
+# RHCE (EX294) track: grading an Ansible role.
+#
+# This builds on the idempotent-playbook skill by adding role STRUCTURE. The
+# learner packages the web-server setup as a reusable role (webdemo) and applies
+# it from a thin top-level site.yml. As before, type: ansible-playbook runs the
+# play twice and requires the second run to report changed=0, then we verify the
+# resulting host state with the same ordinary checks used for RHCSA — because a
+# managed node is just a Rocky host. The page text is driven by a role variable
+# in defaults/main.yml, so editing one var changes the rendered content.
+#
+# Worked solution: tasks/rhce-9/solutions/role/ (site.yml + roles/webdemo/ + inventory + ansible.cfg)
+# Run against the Rocky 9 VM with ansible-core installed, not WSL.
+schema_version: 1
+id: ansible-role-demo
+title: Ansible — role-structured web server
+domain: ansible-playbooks
+track: rhce-9
+time_minutes: 20
+description: |
+  Package a web-server setup as an Ansible role named webdemo and apply it from a
+  top-level site.yml (run from /home/lee/rhce/role). The role must be fully
+  idempotent and:
+    - install the httpd package
+    - enable httpd and start it now
+    - deploy /var/www/html/index.html whose content comes from a role variable
+      page_title defined in roles/webdemo/defaults/main.yml (default
+      "LEE practice lab"), so the page contains "LEE practice lab"
+  A second run of site.yml must report no changes.
+
+checks:
+  - id: role-playbook-idempotent
+    description: site.yml applies the webdemo role cleanly and is idempotent (a second run changes nothing)
+    hint: 'keep every role task declarative, then re-run: ansible-playbook -i inventory site.yml'
+    type: ansible-playbook
+    dir: /home/lee/rhce/role
+    playbook: site.yml
+    inventory: inventory
+
+  - id: httpd-installed
+    description: the httpd package is installed
+    hint: 'in roles/webdemo/tasks/main.yml use ansible.builtin.dnf: { name: httpd, state: present }'
+    type: package-installed
+    name: httpd
+
+  - id: httpd-enabled-active
+    description: httpd is enabled at boot and running now
+    hint: 'ansible.builtin.service: { name: httpd, enabled: true, state: started }'
+    type: service-state
+    unit: httpd
+    enabled: true
+    active: true
+
+  - id: index-html-content
+    description: /var/www/html/index.html contains the page_title marker text
+    hint: 'ansible.builtin.copy a file to /var/www/html/index.html using the page_title role variable so it contains "LEE practice lab"'
+    type: file-content
+    path: /var/www/html/index.html
+    contains: "LEE practice lab"

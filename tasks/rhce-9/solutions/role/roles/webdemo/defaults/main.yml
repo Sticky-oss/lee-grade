@@ -1,0 +1,4 @@
+---
+# Default variables for the webdemo role. Override in inventory, group_vars,
+# or on the play to change the rendered landing page without touching tasks.
+page_title: "LEE practice lab"

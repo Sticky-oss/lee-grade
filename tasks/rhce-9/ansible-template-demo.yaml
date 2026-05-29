@@ -1,0 +1,57 @@
+# Demo task for the RHCE (EX294) track: templated config from a variable.
+#
+# RHCE leans heavily on Jinja2 templates: a playbook renders a config file from
+# a template and a set of variables, and must stay idempotent (re-running it
+# reports no changes). This task runs the learner's playbook (type:
+# ansible-playbook runs it twice and requires the second run to report
+# changed=0) and then verifies the *resulting* file with the same ordinary
+# checks used for RHCSA — because a managed node is just a Rocky host.
+#
+# Worked solution: tasks/rhce-9/solutions/template/ (site.yml + templates/ +
+# inventory + ansible.cfg). Run against the Rocky 9 VM with ansible-core
+# installed, not WSL.
+schema_version: 1
+id: ansible-template-demo
+title: Ansible — templated config from a variable
+domain: ansible-playbooks
+track: rhce-9
+time_minutes: 15
+description: |
+  Write an Ansible playbook site.yml (run from /home/lee/rhce/template) that
+  renders a config file from a Jinja2 template and is fully idempotent:
+    - ensures the directory /etc/lee-demo exists
+    - renders /etc/lee-demo/site.conf (mode 0644, owned by root:root) from a
+      Jinja2 template using playbook variables
+    - defines at least site_name: "LEE practice lab" and max_clients: 200
+  The rendered file must contain a line with the site name and a line like
+  "max_clients 200". A second run of the playbook must report no changes.
+
+checks:
+  - id: template-playbook-idempotent
+    description: site.yml runs clean and is idempotent (a second run changes nothing)
+    hint: 'use ansible.builtin.template (not command/shell), then re-run: ansible-playbook -i inventory site.yml'
+    type: ansible-playbook
+    dir: /home/lee/rhce/template
+    playbook: site.yml
+    inventory: inventory
+
+  - id: site-conf-mode
+    description: /etc/lee-demo/site.conf exists with mode 0644
+    hint: 'set mode: "0644" on the ansible.builtin.template task'
+    type: file
+    path: /etc/lee-demo/site.conf
+    mode: 0644
+
+  - id: site-conf-site-name
+    description: /etc/lee-demo/site.conf contains the site name from the variable
+    hint: 'render {{ site_name }} into the template so the file contains "LEE practice lab"'
+    type: file-content
+    path: /etc/lee-demo/site.conf
+    contains: "LEE practice lab"
+
+  - id: site-conf-max-clients
+    description: /etc/lee-demo/site.conf contains the max_clients directive
+    hint: 'render a line "max_clients {{ max_clients }}" into the template'
+    type: file-content
+    path: /etc/lee-demo/site.conf
+    contains: "max_clients 200"

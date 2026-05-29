@@ -1,0 +1,40 @@
+---
+# Worked solution for ansible-handler-demo.
+# Uses only ansible-core builtin modules — no Galaxy collections required.
+#
+# The key idea: the copy task notifies "restart httpd". On the first run the
+# drop-in is created (changed) so the handler fires once and restarts httpd.
+# On the second run the content is identical, copy reports ok (not changed),
+# the handler is never notified, and httpd is left alone — so the play is
+# idempotent (changed=0 on the second run).
+- name: Configure httpd with a drop-in and restart it via a handler on change
+  hosts: managed
+  become: true
+  tasks:
+    - name: Install the httpd package
+      ansible.builtin.dnf:
+        name: httpd
+        state: present
+
+    - name: Enable httpd at boot and start it now
+      ansible.builtin.service:
+        name: httpd
+        enabled: true
+        state: started
+
+    - name: Deploy the LEE drop-in config
+      ansible.builtin.copy:
+        content: |
+          # LEE demo
+          ServerTokens Prod
+        dest: /etc/httpd/conf.d/lee.conf
+        owner: root
+        group: root
+        mode: "0644"
+      notify: restart httpd
+
+  handlers:
+    - name: restart httpd
+      ansible.builtin.service:
+        name: httpd
+        state: restarted

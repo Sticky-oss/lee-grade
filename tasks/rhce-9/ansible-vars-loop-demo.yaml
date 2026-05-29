@@ -1,0 +1,60 @@
+# RHCE (EX294) track task: Ansible variables and loops.
+#
+# Two more core RHCE skills: defining your own variables, and driving a single
+# task with a loop instead of copy-pasting it. Here the learner declares a list
+# variable and iterates it with loop: to create several files from one task.
+# As always the playbook must be idempotent — type: ansible-playbook runs it
+# twice and requires the second run to report changed=0 — and the resulting
+# host state is then verified with ordinary file-content checks, because a
+# managed node is just a Rocky host.
+#
+# Worked solution: tasks/rhce-9/solutions/vars/ (site.yml + inventory + ansible.cfg)
+# Run against the Rocky 9 VM with ansible-core installed, not WSL.
+schema_version: 1
+id: ansible-vars-loop-demo
+title: Ansible — variables and loops
+domain: ansible-playbooks
+track: rhce-9
+time_minutes: 15
+description: |
+  Write an Ansible playbook site.yml (run from /home/lee/rhce/vars) that uses a
+  list variable and a loop to provision a set of config files, and is fully
+  idempotent:
+    - ensures the directory /etc/lee-demo exists
+    - defines a list variable (e.g. units:) whose items carry a name and a value
+    - in a SINGLE task, loops over that list with loop: and writes one file per
+      item to /etc/lee-demo/<name>.conf
+  Each file must contain a line "unit = <name>" derived from the loop item plus a
+  shared line "owner = LEE practice lab". The three units are alpha, bravo and
+  charlie, yielding /etc/lee-demo/alpha.conf, bravo.conf and charlie.conf.
+  A second run of the playbook must report no changes.
+
+checks:
+  - id: vars-loop-playbook-idempotent
+    description: site.yml runs clean and is idempotent (a second run changes nothing)
+    hint: 'use ansible.builtin.copy with content: inside a loop, then re-run: ansible-playbook -i inventory site.yml'
+    type: ansible-playbook
+    dir: /home/lee/rhce/vars
+    playbook: site.yml
+    inventory: inventory
+
+  - id: alpha-conf-content
+    description: /etc/lee-demo/alpha.conf carries the alpha unit marker
+    hint: 'the loop item for alpha should render "unit = alpha" into the file content'
+    type: file-content
+    path: /etc/lee-demo/alpha.conf
+    contains: "unit = alpha"
+
+  - id: bravo-conf-content
+    description: /etc/lee-demo/bravo.conf carries the bravo unit marker
+    hint: 'the loop item for bravo should render "unit = bravo" into the file content'
+    type: file-content
+    path: /etc/lee-demo/bravo.conf
+    contains: "unit = bravo"
+
+  - id: charlie-conf-shared-owner
+    description: /etc/lee-demo/charlie.conf carries the shared owner marker
+    hint: 'every file gets the same "owner = LEE practice lab" line from the copy content'
+    type: file-content
+    path: /etc/lee-demo/charlie.conf
+    contains: "owner = LEE practice lab"

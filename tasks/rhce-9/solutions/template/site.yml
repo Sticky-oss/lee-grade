@@ -1,0 +1,26 @@
+---
+# Worked solution for ansible-template-demo.
+# Uses only ansible-core builtin modules — no Galaxy collections required.
+# template + file are declarative, so a second run reports changed=0.
+- name: Render a config file from a Jinja2 template and variables
+  hosts: managed
+  become: true
+  vars:
+    site_name: "LEE practice lab"
+    max_clients: 200
+  tasks:
+    - name: Ensure the config directory exists
+      ansible.builtin.file:
+        path: /etc/lee-demo
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Render the site config from the template
+      ansible.builtin.template:
+        src: templates/site.conf.j2
+        dest: /etc/lee-demo/site.conf
+        owner: root
+        group: root
+        mode: "0644"

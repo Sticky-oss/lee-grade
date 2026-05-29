@@ -1,0 +1,9 @@
+---
+# Worked solution for ansible-role-demo.
+# A thin top-level play that just applies the webdemo role — all the real work
+# (and all the idempotent, declarative tasks) lives in roles/webdemo/.
+- name: Configure a basic web server via the webdemo role
+  hosts: managed
+  become: true
+  roles:
+    - webdemo
