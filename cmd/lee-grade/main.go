@@ -38,6 +38,8 @@ func main() {
 	noColor := flag.Bool("no-color", false, "disable ANSI colour even when output is a TTY")
 	listTypes := flag.Bool("list-check-types", false, "print the alphabet of registered check types and exit")
 	showVersion := flag.Bool("version", false, "print version + commit and exit")
+	rebootTest := flag.Bool("reboot-test", false, "grade, reboot, then re-grade to prove the config survives a reboot (root; needs --task/--tasks-dir)")
+	rebootResume := flag.Bool("reboot-test-resume", false, "internal: post-boot phase of --reboot-test, invoked by the generated systemd unit")
 	flag.Parse()
 
 	if *showVersion {
@@ -49,6 +51,15 @@ func main() {
 			fmt.Println(t)
 		}
 		return
+	}
+	// Reboot-persistence mode (v0.3). --reboot-test-resume is the hidden
+	// post-boot phase the generated unit calls; --reboot-test is the
+	// operator-facing driver. Both short-circuit the normal grading flow.
+	if *rebootResume {
+		os.Exit(resumeRebootTest())
+	}
+	if *rebootTest {
+		os.Exit(runRebootTest(*taskPath, *tasksDir, *noColor, *jsonOut, *quiet))
 	}
 	if *taskPath == "" && *tasksDir == "" {
 		// Bare `lee-grade` with no flags on a TTY → show the friendly
@@ -71,24 +82,9 @@ func main() {
 	// Colour is on iff stdout is a TTY AND the user didn't disable it.
 	render.AnsiSupported = !*noColor && !*jsonOut && isTerminal(os.Stdout)
 
-	var tasks []*task.Task
-	if *taskPath != "" {
-		t, err := task.LoadFile(*taskPath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "lee-grade: %v\n", err)
-			os.Exit(2)
-		}
-		tasks = append(tasks, t)
-	}
-	if *tasksDir != "" {
-		ts, errs := task.LoadDir(*tasksDir)
-		for _, e := range errs {
-			fmt.Fprintf(os.Stderr, "lee-grade: %v\n", e)
-		}
-		tasks = append(tasks, ts...)
-		if len(ts) == 0 && len(errs) > 0 {
-			os.Exit(2)
-		}
+	tasks, code := loadTasks(*taskPath, *tasksDir)
+	if code != 0 {
+		os.Exit(code)
 	}
 
 	// Run each task; track aggregate pass/fail so exit code reflects the
@@ -115,6 +111,33 @@ func main() {
 	if !allPassed {
 		os.Exit(1)
 	}
+}
+
+// loadTasks resolves --task / --tasks-dir into a task slice, shared by the
+// normal grading flow and --reboot-test. On a fatal load error it returns
+// (nil, exitCode); otherwise (tasks, 0). Per-file errors from a --tasks-dir
+// scan are printed but non-fatal unless they leave zero tasks loaded.
+func loadTasks(taskPath, tasksDir string) ([]*task.Task, int) {
+	var tasks []*task.Task
+	if taskPath != "" {
+		t, err := task.LoadFile(taskPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "lee-grade: %v\n", err)
+			return nil, 2
+		}
+		tasks = append(tasks, t)
+	}
+	if tasksDir != "" {
+		ts, errs := task.LoadDir(tasksDir)
+		for _, e := range errs {
+			fmt.Fprintf(os.Stderr, "lee-grade: %v\n", e)
+		}
+		tasks = append(tasks, ts...)
+		if len(ts) == 0 && len(errs) > 0 {
+			return nil, 2
+		}
+	}
+	return tasks, 0
 }
 
 // isTerminal is a minimal stand-in for golang.org/x/term that avoids
