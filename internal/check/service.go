@@ -1,6 +1,7 @@
 package check
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -135,9 +136,30 @@ func checkPackageInstalled(c *task.Check) Result {
 
 // runCmd is a small wrapper that returns combined stdout/stderr + error.
 // Using CombinedOutput so error paths surface real shell wording in Detail.
-func runCmd(name string, args ...string) (string, error) {
+//
+// It is a package var, not a plain func, so tests can substitute canned
+// tool output. lee-dev (WSL Rocky) has SELinux disabled and no
+// firewalld/cronie, so the selinux/firewall/cron checkers can only be
+// exercised with injected output; overriding runCmd is that seam.
+var runCmd = func(name string, args ...string) (string, error) {
 	out, err := exec.Command(name, args...).CombinedOutput()
 	return string(out), err
+}
+
+// exitCode extracts the process exit code from an error returned by runCmd.
+// Returns 0 when err is nil, the real code for an *exec.ExitError, and -1
+// when the command could not be started (binary missing). Used by checkers
+// like firewall-cmd whose --query-* subcommands signal yes/no purely via
+// exit status.
+func exitCode(err error) int {
+	if err == nil {
+		return 0
+	}
+	var ee *exec.ExitError
+	if errors.As(err, &ee) {
+		return ee.ExitCode()
+	}
+	return -1
 }
 
 func ifThen(cond bool, a, b string) string {

@@ -154,7 +154,7 @@ checks:
 See `tasks/rhcsa-9/demo-host-sanity.yaml` for a runnable example, and
 `docs/check-types.md` (TODO) for the full check-type alphabet.
 
-## Check types (v1)
+## Check types
 
 Implemented:
 
@@ -168,12 +168,17 @@ Implemented:
 | `service-state` | systemd unit is active / enabled / masked |
 | `package-installed` | rpm (or dpkg) reports installed; version match |
 | `mount` | something is mounted at path with right fstype / device / options |
+| `selinux` | one of: `mode` (getenforce), `boolean` (getsebool), file `path` context/`setype` (stat -c %C), or `port` label (semanage) |
+| `firewall` | one of: `service`, `port`, `rich_rule`, or `masquerade` via `firewall-cmd --query-*`; `permanent: true` checks on-disk config |
+| `cron-job` | a user crontab or explicit cron `file` contains an entry matching `schedule` / `command` / `matches` |
 
-Planned for v2:
+Each `selinux` / `firewall` / `cron-job` check verifies exactly one aspect —
+split multiple assertions into multiple checks. See
+`tasks/rhcsa-9/selinux-firewall-cron-demo.yaml` for the full DSL surface.
 
-- `selinux-mode`, `selinux-boolean`, `selinux-context`, `selinux-port`
-- `firewall-service`, `firewall-port`, `firewall-rich-rule`
-- `cron-job`, `command-output`, `exit-code`
+Planned:
+
+- `command-output`, `exit-code`
 - `mount-persists` (verifies fstab entry that would re-mount on boot)
 
 To add a new check type: implement `internal/check.Checker` and
@@ -195,12 +200,18 @@ To add a new check type: implement `internal/check.Checker` and
 
 ## Status
 
-**v0.1** — proof of concept (this commit). 8 check types, working
-human/JSON output, lee-lab-compatible DSL.
+**v0.2** — 11 check types: v0.1's 8 plus `selinux`, `firewall`, and
+`cron-job`. Note: the v0.2 checks can't be validated live on the WSL Rocky
+dev host (SELinux is disabled there and firewalld/cronie aren't installed),
+so their logic is covered by unit tests fed canned tool output; full live
+validation lands with the reboot-test VM in v0.3.
+
+**v0.1** — proof of concept. 8 check types, working human/JSON output,
+lee-lab-compatible DSL.
 
 Roadmap:
-- v0.2 — SELinux + firewall checks
-- v0.3 — `--reboot-test` (snapshot + reboot + resume)
+- v0.2 — SELinux + firewall + cron checks ✅
+- v0.3 — `--reboot-test` (snapshot + reboot + resume); first full live validation of v0.2 checks on a real enforcing Rocky 9 VM
 - v0.4 — Signed task bundles
 - v0.5 — RPM + Homebrew distribution
 - v1.0 — Full RHCSA EX200 + RHCE EX294 task library

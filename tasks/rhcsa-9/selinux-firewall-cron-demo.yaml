@@ -1,0 +1,64 @@
+# Demo task for the v0.2 check types: selinux, firewall, cron-job.
+#
+# Unlike demo-host-sanity.yaml, this task does NOT pass on a stock box — it
+# describes a small web-server hardening scenario the learner must perform.
+# It also won't pass on the lee-dev WSL host (SELinux is Disabled there and
+# firewalld/cronie aren't installed); run it against a real enforcing Rocky 9
+# VM. It exists primarily to document the v0.2 DSL surface.
+schema_version: 1
+id: web-hardening-demo
+title: Web server hardening — SELinux, firewall, cron
+domain: security
+track: rhcsa-9
+time_minutes: 15
+description: |
+  Serve content from a non-default docroot and lock the box down:
+    1. SELinux must stay in enforcing mode.
+    2. Label /srv/www with the httpd_sys_content_t type.
+    3. Allow httpd to make outbound network connections (boolean).
+    4. Permanently open the http service in the firewall.
+    5. Add a nightly cron job for the rocky user that runs /opt/backup.sh.
+
+checks:
+  - id: selinux-enforcing
+    description: SELinux is in enforcing mode
+    hint: setenforce 1 && sed -i 's/^SELINUX=.*/SELINUX=enforcing/' /etc/selinux/config
+    type: selinux
+    mode: enforcing
+
+  - id: docroot-context
+    description: /srv/www is labeled httpd_sys_content_t
+    hint: semanage fcontext -a -t httpd_sys_content_t '/srv/www(/.*)?' && restorecon -Rv /srv/www
+    type: selinux
+    path: /srv/www
+    setype: httpd_sys_content_t
+
+  - id: httpd-network-boolean
+    description: httpd_can_network_connect boolean is on (persistently)
+    hint: setsebool -P httpd_can_network_connect on
+    type: selinux
+    boolean: httpd_can_network_connect
+    state: "on"
+
+  - id: http-port-label
+    description: TCP port 8080 is labeled http_port_t
+    hint: semanage port -a -t http_port_t -p tcp 8080
+    type: selinux
+    port: 8080
+    proto: tcp
+    setype: http_port_t
+
+  - id: firewall-http-permanent
+    description: http service is permanently allowed in the default zone
+    hint: firewall-cmd --permanent --add-service=http && firewall-cmd --reload
+    type: firewall
+    service: http
+    permanent: true
+
+  - id: nightly-backup-cron
+    description: rocky has a 2am cron job running /opt/backup.sh
+    hint: 'crontab -u rocky -e   # add: 0 2 * * * /opt/backup.sh'
+    type: cron-job
+    user: rocky
+    schedule: "0 2 * * *"
+    command: /opt/backup.sh
