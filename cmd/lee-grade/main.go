@@ -31,6 +31,12 @@ var (
 )
 
 func main() {
+	// Subcommand dispatch must precede flag parsing: `lee-grade exam ...`
+	// owns its own argument grammar (start/status/grade/reset).
+	if len(os.Args) > 1 && os.Args[1] == "exam" {
+		os.Exit(runExam(os.Args[2:]))
+	}
+
 	taskPath := flag.String("task", "", "path to a single task YAML file")
 	tasksDir := flag.String("tasks-dir", "", "directory of task YAML files to grade recursively")
 	jsonOut := flag.Bool("json", false, "emit JSON instead of human-readable output")

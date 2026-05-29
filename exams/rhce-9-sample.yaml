@@ -1,0 +1,20 @@
+# Sample RHCE / EX294 sitting: the five Ansible tasks graded as one timed exam
+# against a 70% cut score (the real EX200/EX294 pass mark). Task paths are
+# relative to this file's directory. Run from the repo root on the Rocky 9 VM:
+#
+#   sudo lee-grade exam start exams/rhce-9-sample.yaml
+#   sudo lee-grade exam status
+#   sudo lee-grade exam grade
+#   sudo lee-grade exam reset
+schema_version: 1
+id: rhce-9-sample
+title: RHCE 9 (EX294) — sample Ansible sitting
+track: rhce-9
+time_minutes: 60
+pass_percent: 70
+tasks:
+  - ../tasks/rhce-9/ansible-template-demo.yaml
+  - ../tasks/rhce-9/ansible-handler-demo.yaml
+  - ../tasks/rhce-9/ansible-vars-loop-demo.yaml
+  - ../tasks/rhce-9/ansible-role-demo.yaml
+  - ../tasks/rhce-9/ansible-web-idempotent-demo.yaml
