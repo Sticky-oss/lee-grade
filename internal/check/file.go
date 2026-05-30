@@ -45,6 +45,9 @@ func checkFile(c *task.Check) Result {
 	if args.Path == "" {
 		return Result{Error: "check 'file' requires field 'path'"}
 	}
+	if c.Host != "" {
+		return checkFileRemote(c.Host, args)
+	}
 
 	info, err := os.Lstat(args.Path)
 	exists := err == nil

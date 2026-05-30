@@ -46,6 +46,9 @@ func checkUser(c *task.Check) Result {
 	if args.Name == "" {
 		return Result{Error: "check 'user' requires field 'name'"}
 	}
+	if c.Host != "" {
+		return checkUserRemote(c.Host, args)
+	}
 
 	u, err := user.Lookup(args.Name)
 	if err != nil {
@@ -113,6 +116,9 @@ func checkGroup(c *task.Check) Result {
 	if args.Name == "" {
 		return Result{Error: "check 'group' requires field 'name'"}
 	}
+	if c.Host != "" {
+		return checkGroupRemote(c.Host, args)
+	}
 	g, err := user.LookupGroup(args.Name)
 	if err != nil {
 		if _, isUnknown := err.(user.UnknownGroupError); isUnknown {
@@ -144,6 +150,9 @@ func checkUserInGroup(c *task.Check) Result {
 	}
 	if args.User == "" || args.Group == "" {
 		return Result{Error: "check 'user-in-group' requires fields 'user' and 'group'"}
+	}
+	if c.Host != "" {
+		return checkUserInGroupRemote(c.Host, args)
 	}
 	u, err := user.Lookup(args.User)
 	if err != nil {

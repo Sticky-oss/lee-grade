@@ -3,6 +3,7 @@ package check
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -48,7 +49,7 @@ func checkMount(c *task.Check) Result {
 		return Result{Error: "check 'mount' requires field 'mountpoint'"}
 	}
 
-	mounts, err := readProcMounts()
+	mounts, err := readProcMounts(c.Host)
 	if err != nil {
 		return Result{Passed: false, Error: err.Error()}
 	}
@@ -83,14 +84,25 @@ func checkMount(c *task.Check) Result {
 	return Result{Passed: true}
 }
 
-func readProcMounts() ([]mountEntry, error) {
-	f, err := os.Open("/proc/mounts")
-	if err != nil {
-		return nil, fmt.Errorf("open /proc/mounts: %w", err)
+func readProcMounts(host string) ([]mountEntry, error) {
+	if host == "" {
+		f, err := os.Open("/proc/mounts")
+		if err != nil {
+			return nil, fmt.Errorf("open /proc/mounts: %w", err)
+		}
+		defer f.Close()
+		return parseProcMounts(f)
 	}
-	defer f.Close()
+	out, err := runOn(host, "cat", "/proc/mounts")
+	if err != nil {
+		return nil, fmt.Errorf("read /proc/mounts on %s: %v: %s", host, err, strings.TrimSpace(out))
+	}
+	return parseProcMounts(strings.NewReader(out))
+}
+
+func parseProcMounts(r io.Reader) ([]mountEntry, error) {
 	var out []mountEntry
-	s := bufio.NewScanner(f)
+	s := bufio.NewScanner(r)
 	for s.Scan() {
 		fields := strings.Fields(s.Text())
 		if len(fields) < 4 {

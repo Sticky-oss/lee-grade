@@ -1,0 +1,112 @@
+# RHCE (EX294) track: fleet config graded PER NODE across the full check set.
+#
+# Runs the fleet playbook (solutions/multinode/site.yml — directory + per-node
+# identity file + a service account) and then verifies the resulting state ON
+# each managed node over SSH using the remote-capable checks: file (mode/owner/
+# kind), file-content, user, group, user-in-group and mount all accept a
+# `host:` and run their inspection on that node.
+#
+# Topology + hosts.yaml: labs/multinode-setup.sh. Grade with:
+#   lee-grade --task tasks/rhce-9/ansible-multinode-fleet-demo.yaml \
+#             --hosts /home/lee/multinode/hosts.yaml
+# (no sudo needed — every check is ansible-playbook or remote.)
+schema_version: 1
+id: ansible-multinode-fleet-demo
+title: Ansible — fleet config graded on every managed node
+domain: ansible-playbooks
+track: rhce-9
+time_minutes: 25
+description: |
+  Apply the fleet playbook site.yml (run from /home/lee/multinode) to EVERY
+  managed node, idempotently:
+    - /etc/lee-fleet is a directory (0755, root:root)
+    - /etc/lee-fleet/node.conf (0644, root:root) carries "node = <hostname>"
+      and a shared "site = LEE practice lab"
+    - a service account user "leeops" exists (shell /bin/bash)
+  Graded per node: lee-grade reaches node1 and node2 over SSH and verifies the
+  files, the user, its group and membership, and a core mount on each.
+
+checks:
+  - id: fleet-idempotent
+    description: site.yml converges every node and is idempotent (a second run changes nothing)
+    hint: 'declarative modules only (file/copy/user), then re-run: ansible-playbook -i inventory site.yml'
+    type: ansible-playbook
+    dir: /home/lee/multinode
+    playbook: site.yml
+    inventory: inventory
+
+  - id: node1-conf-file
+    description: node1's /etc/lee-fleet/node.conf is a 0644 root-owned file
+    hint: 'ansible.builtin.copy sets owner/group root and mode "0644"'
+    type: file
+    host: node1
+    path: /etc/lee-fleet/node.conf
+    mode: 0644
+    owner: root
+    group: root
+    kind: file
+
+  - id: node2-conf-file
+    description: node2's /etc/lee-fleet/node.conf is a 0644 root-owned file
+    hint: 'the same copy task runs on node2'
+    type: file
+    host: node2
+    path: /etc/lee-fleet/node.conf
+    mode: 0644
+    owner: root
+
+  - id: node1-fleet-dir
+    description: /etc/lee-fleet is a directory (0755) on node1
+    hint: 'ansible.builtin.file state=directory mode="0755"'
+    type: file
+    host: node1
+    path: /etc/lee-fleet
+    kind: directory
+    mode: 0755
+
+  - id: node1-conf-content
+    description: node1's node.conf carries the shared site marker
+    hint: 'copy content includes "site = LEE practice lab"'
+    type: file-content
+    host: node1
+    path: /etc/lee-fleet/node.conf
+    contains: "site = LEE practice lab"
+
+  - id: node1-leeops-user
+    description: the leeops service account exists on node1 (shell /bin/bash)
+    hint: 'ansible.builtin.user name=leeops shell=/bin/bash'
+    type: user
+    host: node1
+    name: leeops
+    shell: /bin/bash
+
+  - id: node2-leeops-user
+    description: the leeops service account exists on node2 (shell /bin/bash)
+    hint: 'the same user task runs on node2'
+    type: user
+    host: node2
+    name: leeops
+    shell: /bin/bash
+
+  - id: node1-leeops-group
+    description: the leeops primary group exists on node1
+    hint: 'ansible.builtin.user creates the matching primary group by default'
+    type: group
+    host: node1
+    name: leeops
+
+  - id: node1-leeops-member
+    description: leeops is a member of the leeops group on node1
+    hint: 'the user is in its own primary group'
+    type: user-in-group
+    host: node1
+    user: leeops
+    group: leeops
+
+  - id: node1-proc-mount
+    description: /proc is mounted as proc on node1
+    hint: 'a core kernel mount present on every Linux host'
+    type: mount
+    host: node1
+    mountpoint: /proc
+    fstype: proc

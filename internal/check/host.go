@@ -109,4 +109,9 @@ var remoteCapable = map[string]bool{
 	"service-state":     true,
 	"package-installed": true,
 	"file-content":      true,
+	"file":              true,
+	"user":              true,
+	"group":             true,
+	"user-in-group":     true,
+	"mount":             true,
 }

@@ -114,9 +114,11 @@ func TestFileContent_remoteMissingFile(t *testing.T) {
 
 func TestRunTask_hostOnUnsupportedTypeErrors(t *testing.T) {
 	withHosts(t, map[string]HostSpec{"node1": {Address: "10.0.0.4"}})
+	// selinux is deliberately NOT remote-capable, so a host: on it must be
+	// rejected by the runner rather than dispatched.
 	tr := RunTask(&task.Task{
 		ID: "t", Title: "x", Checks: []task.Check{
-			{ID: "f", Description: "d", Type: "file", Host: "node1", Args: map[string]any{"path": "/etc/hosts"}},
+			{ID: "s", Description: "d", Type: "selinux", Host: "node1", Args: map[string]any{"mode": "enforcing"}},
 		},
 	})
 	if tr.Checks[0].Passed {
@@ -124,5 +126,63 @@ func TestRunTask_hostOnUnsupportedTypeErrors(t *testing.T) {
 	}
 	if !strings.Contains(tr.Checks[0].Error, "does not support a remote") {
 		t.Errorf("expected remote-unsupported error, got %+v", tr.Checks[0])
+	}
+}
+
+func TestFile_remoteModeOwnerKindPass(t *testing.T) {
+	withHosts(t, map[string]HostSpec{"node1": {Address: "10.0.0.4"}})
+	stubRunCmd(t, func(name string, args ...string) (string, error) {
+		return "644|root|root|regular file\n", nil // %a|%U|%G|%F
+	})
+	r := checkFile(loadCheck(t, `{id: c, description: d, type: file, host: node1, path: /etc/x, mode: 0644, owner: root, kind: file}`))
+	if !r.Passed {
+		t.Fatalf("expected pass, got %+v", r)
+	}
+}
+
+func TestFile_remoteModeMismatch(t *testing.T) {
+	withHosts(t, map[string]HostSpec{"node1": {Address: "10.0.0.4"}})
+	stubRunCmd(t, func(name string, args ...string) (string, error) {
+		return "600|root|root|regular file\n", nil
+	})
+	r := checkFile(loadCheck(t, `{id: c, description: d, type: file, host: node1, path: /etc/x, mode: 0644}`))
+	if r.Passed {
+		t.Error("mode 0600 should fail when 0644 is wanted")
+	}
+	if !strings.Contains(r.Detail, "0600") {
+		t.Errorf("detail = %q", r.Detail)
+	}
+}
+
+func TestUser_remotePass(t *testing.T) {
+	withHosts(t, map[string]HostSpec{"node1": {Address: "10.0.0.4"}})
+	stubRunCmd(t, func(name string, args ...string) (string, error) {
+		return "leeops:x:1001:1001::/home/leeops:/bin/bash\n", nil
+	})
+	r := checkUser(loadCheck(t, `{id: c, description: d, type: user, host: node1, name: leeops, uid: 1001, shell: /bin/bash}`))
+	if !r.Passed {
+		t.Fatalf("expected pass, got %+v", r)
+	}
+}
+
+func TestUser_remoteMissing(t *testing.T) {
+	withHosts(t, map[string]HostSpec{"node1": {Address: "10.0.0.4"}})
+	stubRunCmd(t, func(name string, args ...string) (string, error) {
+		return "", errors.New("exit status 2")
+	})
+	r := checkUser(loadCheck(t, `{id: c, description: d, type: user, host: node1, name: ghost}`))
+	if r.Passed || !strings.Contains(r.Detail, "does not exist") {
+		t.Errorf("missing remote user should fail with does-not-exist, got %+v", r)
+	}
+}
+
+func TestMount_remotePass(t *testing.T) {
+	withHosts(t, map[string]HostSpec{"node1": {Address: "10.0.0.4"}})
+	stubRunCmd(t, func(name string, args ...string) (string, error) {
+		return "/dev/sdb1 /data xfs rw,noatime 0 0\nproc /proc proc rw 0 0\n", nil
+	})
+	r := checkMount(loadCheck(t, `{id: c, description: d, type: mount, host: node1, mountpoint: /data, fstype: xfs, contains_options: [noatime]}`))
+	if !r.Passed {
+		t.Fatalf("expected pass, got %+v", r)
 	}
 }
