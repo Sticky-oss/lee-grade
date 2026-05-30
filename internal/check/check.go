@@ -121,6 +121,18 @@ func RunTask(t *task.Task) *TaskResult {
 			})
 			continue
 		}
+		// Guard against silently grading localhost: a `host` on a check type
+		// that can't run remotely yet is an authoring error, not a pass.
+		if c.Host != "" && !remoteCapable[c.Type] {
+			tr.Checks = append(tr.Checks, Result{
+				CheckID:     c.ID,
+				Description: c.Description,
+				Passed:      false,
+				Hint:        c.Hint,
+				Error:       fmt.Sprintf("check type %q does not support a remote 'host' yet (supported: service-state, package-installed, file-content)", c.Type),
+			})
+			continue
+		}
 		r := impl.Run(c)
 		// Implementation may forget to copy these — fill in for safety.
 		if r.CheckID == "" {

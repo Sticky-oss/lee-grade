@@ -83,6 +83,13 @@ type Check struct {
 	// Type is the check-type discriminator. Must match a registered impl.
 	Type string `yaml:"type"`
 
+	// Host optionally targets a managed node by logical name (resolved from
+	// the --hosts file) instead of the local host — used to grade per-node
+	// state in a multi-node topology. Empty means "the local host". Only
+	// remote-capable check types honour it; others error rather than silently
+	// grading localhost.
+	Host string `yaml:"host,omitempty"`
+
 	// Args absorbs every sibling YAML key not matched above (path, mode,
 	// owner, name, uid, …). The per-type implementation decodes whatever
 	// subset it cares about. Inline + map[string]any is the yaml.v3

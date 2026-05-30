@@ -167,8 +167,15 @@ func examGrade(args []string) int {
 	jsonOut := fs.Bool("json", false, "emit JSON instead of human-readable output")
 	noColor := fs.Bool("no-color", false, "disable ANSI colour")
 	quiet := fs.Bool("quiet", false, "suppress per-task output; print only the summary")
+	hostsPath := fs.String("hosts", "", "path to a hosts YAML so checks with a 'host:' grade managed nodes remotely")
 	if err := fs.Parse(args); err != nil {
 		return 2
+	}
+	if *hostsPath != "" {
+		if err := loadHosts(*hostsPath); err != nil {
+			fmt.Fprintf(os.Stderr, "lee-grade: %v\n", err)
+			return 2
+		}
 	}
 
 	st, err := readExamState()

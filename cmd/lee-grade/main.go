@@ -44,6 +44,7 @@ func main() {
 	noColor := flag.Bool("no-color", false, "disable ANSI colour even when output is a TTY")
 	listTypes := flag.Bool("list-check-types", false, "print the alphabet of registered check types and exit")
 	showVersion := flag.Bool("version", false, "print version + commit and exit")
+	hostsPath := flag.String("hosts", "", "path to a hosts YAML mapping names to SSH targets; lets checks with a 'host:' grade managed nodes remotely")
 	rebootTest := flag.Bool("reboot-test", false, "grade, reboot, then re-grade to prove the config survives a reboot (root; needs --task/--tasks-dir)")
 	rebootResume := flag.Bool("reboot-test-resume", false, "internal: post-boot phase of --reboot-test, invoked by the generated systemd unit")
 	flag.Parse()
@@ -87,6 +88,13 @@ func main() {
 
 	// Colour is on iff stdout is a TTY AND the user didn't disable it.
 	render.AnsiSupported = !*noColor && !*jsonOut && isTerminal(os.Stdout)
+
+	if *hostsPath != "" {
+		if err := loadHosts(*hostsPath); err != nil {
+			fmt.Fprintf(os.Stderr, "lee-grade: %v\n", err)
+			os.Exit(2)
+		}
+	}
 
 	tasks, code := loadTasks(*taskPath, *tasksDir)
 	if code != 0 {

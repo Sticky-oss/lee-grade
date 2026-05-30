@@ -88,6 +88,19 @@ CFG
 echo "--- inventory ---"
 cat "$MN/inventory"
 
+echo "########## hosts.yaml (for lee-grade --hosts, remote checks) ##########"
+{
+  echo "hosts:"
+  while read -r n hostspec; do
+    ip="${hostspec#ansible_host=}"
+    echo "  $n:"
+    echo "    address: $ip"
+    echo "    user: ansible"
+    echo "    key: $MN/ansible_node"
+  done < "$MN/inventory_hosts"
+} > "$MN/hosts.yaml"
+cat "$MN/hosts.yaml"
+
 echo "########## connectivity test (ansible ping) ##########"
 ( cd "$MN" && ansible managed -m ping -o )
 

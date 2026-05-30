@@ -1,0 +1,28 @@
+---
+# Worked solution for ansible-multinode-web-demo. Stands up a web server on
+# every managed node and serves a per-node landing page. Declarative modules
+# only (dnf/service/copy), so a second run reports changed=0 across the fleet.
+- name: Stand up a web server on every managed node
+  hosts: managed
+  become: true
+  tasks:
+    - name: Install httpd
+      ansible.builtin.dnf:
+        name: httpd
+        state: present
+
+    - name: Enable httpd at boot and start it now
+      ansible.builtin.service:
+        name: httpd
+        enabled: true
+        state: started
+
+    - name: Serve a per-node landing page
+      ansible.builtin.copy:
+        # inventory_hostname differs per node, so each node serves its own
+        # page from the same task — and copy stays declarative (idempotent).
+        content: "Welcome from {{ inventory_hostname }}\n"
+        dest: /var/www/html/index.html
+        owner: root
+        group: root
+        mode: "0644"

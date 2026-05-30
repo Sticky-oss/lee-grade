@@ -1,0 +1,79 @@
+# RHCE (EX294) track: a web server graded PER NODE across the fleet.
+#
+# This goes beyond fleet idempotency: lee-grade reaches each managed node over
+# SSH (via --hosts) and verifies the resulting state ON that node — httpd
+# running and the right page served — using the remote-capable service-state,
+# package-installed and file-content checks (any check with a `host:` runs its
+# inspection on that node instead of the control host).
+#
+# Topology: bring up node1/node2 with labs/multinode-setup.sh, which also writes
+# /home/lee/multinode/hosts.yaml. Grade with:
+#   sudo lee-grade --task tasks/rhce-9/ansible-multinode-web-demo.yaml \
+#        --hosts /home/lee/multinode/hosts.yaml
+#
+# Worked solution: tasks/rhce-9/solutions/multinode-web/web.yml (drop into
+# /home/lee/multinode/).
+schema_version: 1
+id: ansible-multinode-web-demo
+title: Ansible — web server graded on every managed node
+domain: ansible-playbooks
+track: rhce-9
+time_minutes: 25
+description: |
+  Write web.yml (run from /home/lee/multinode) that stands up a web server on
+  EVERY managed node and is idempotent:
+    - installs the httpd package
+    - enables httpd and starts it now
+    - serves /var/www/html/index.html containing "Welcome from <hostname>"
+  Unlike the fleet-config task, this one is graded PER NODE: lee-grade reaches
+  node1 and node2 over SSH and verifies httpd + the page on each.
+
+checks:
+  - id: web-fleet-idempotent
+    description: web.yml converges every node and is idempotent (a second run changes nothing)
+    hint: 'declarative modules only (dnf/service/copy), then re-run: ansible-playbook -i inventory web.yml'
+    type: ansible-playbook
+    dir: /home/lee/multinode
+    playbook: web.yml
+    inventory: inventory
+
+  - id: node1-httpd
+    description: httpd is enabled and running on node1
+    hint: 'ansible.builtin.service on the managed nodes: name=httpd enabled=true state=started'
+    type: service-state
+    host: node1
+    unit: httpd
+    enabled: true
+    active: true
+
+  - id: node2-httpd
+    description: httpd is enabled and running on node2
+    hint: 'the play targets hosts: managed, so node2 is configured by the same service task'
+    type: service-state
+    host: node2
+    unit: httpd
+    enabled: true
+    active: true
+
+  - id: node1-httpd-pkg
+    description: the httpd package is installed on node1
+    hint: 'ansible.builtin.dnf: { name: httpd, state: present }'
+    type: package-installed
+    host: node1
+    name: httpd
+
+  - id: node1-index
+    description: node1 serves its own landing page
+    hint: 'copy content "Welcome from {{ inventory_hostname }}" to /var/www/html/index.html'
+    type: file-content
+    host: node1
+    path: /var/www/html/index.html
+    contains: "Welcome from node1"
+
+  - id: node2-index
+    description: node2 serves its own landing page
+    hint: 'the same copy task renders node2''s hostname into its page'
+    type: file-content
+    host: node2
+    path: /var/www/html/index.html
+    contains: "Welcome from node2"

@@ -54,7 +54,7 @@ func checkServiceState(c *task.Check) Result {
 	}
 
 	if args.Active != nil {
-		out, _ := runCmd("systemctl", "is-active", args.Unit)
+		out, _ := runOn(c.Host, "systemctl", "is-active", args.Unit)
 		isActive := strings.TrimSpace(out) == "active"
 		if isActive != *args.Active {
 			return Result{Passed: false, Detail: fmt.Sprintf(
@@ -65,7 +65,7 @@ func checkServiceState(c *task.Check) Result {
 		}
 	}
 	if args.Enabled != nil {
-		out, _ := runCmd("systemctl", "is-enabled", args.Unit)
+		out, _ := runOn(c.Host, "systemctl", "is-enabled", args.Unit)
 		isEnabled := strings.TrimSpace(out) == "enabled" || strings.TrimSpace(out) == "alias"
 		if isEnabled != *args.Enabled {
 			return Result{Passed: false, Detail: fmt.Sprintf(
@@ -76,7 +76,7 @@ func checkServiceState(c *task.Check) Result {
 		}
 	}
 	if args.Masked != nil {
-		out, _ := runCmd("systemctl", "is-enabled", args.Unit)
+		out, _ := runOn(c.Host, "systemctl", "is-enabled", args.Unit)
 		isMasked := strings.TrimSpace(out) == "masked"
 		if isMasked != *args.Masked {
 			return Result{Passed: false, Detail: fmt.Sprintf(
@@ -105,7 +105,7 @@ func checkPackageInstalled(c *task.Check) Result {
 		return Result{Error: "check 'package-installed' requires field 'name'"}
 	}
 
-	out, err := runCmd("rpm", "-q", "--queryformat", "%{NAME} %{VERSION}-%{RELEASE}\n", args.Name)
+	out, err := runOn(c.Host, "rpm", "-q", "--queryformat", "%{NAME} %{VERSION}-%{RELEASE}\n", args.Name)
 	if err != nil {
 		// rpm exits 1 for "not installed" but also "command not found" if
 		// rpm itself is absent. Distinguish via the stderr text.
@@ -115,7 +115,7 @@ func checkPackageInstalled(c *task.Check) Result {
 		// Fall through to a dpkg attempt for Debian-derived systems —
 		// useful for cross-distro CI even though the primary target is
 		// RHEL/Rocky.
-		if dpkgOut, dpkgErr := runCmd("dpkg-query", "-W", "-f=${binary:Package} ${Version}\n", args.Name); dpkgErr == nil {
+		if dpkgOut, dpkgErr := runOn(c.Host, "dpkg-query", "-W", "-f=${binary:Package} ${Version}\n", args.Name); dpkgErr == nil {
 			if args.Version != "" && !strings.Contains(dpkgOut, args.Version) {
 				return Result{Passed: false, Detail: fmt.Sprintf(
 					"package %s installed but version %q not present", args.Name, args.Version,

@@ -178,14 +178,28 @@ func checkFileContent(c *task.Check) Result {
 		return Result{Error: "check 'file-content' requires exactly one of: equals, contains, matches"}
 	}
 
-	data, err := os.ReadFile(args.Path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return Result{Passed: false, Detail: fmt.Sprintf("%s does not exist", args.Path)}
+	var content string
+	if c.Host == "" {
+		data, err := os.ReadFile(args.Path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return Result{Passed: false, Detail: fmt.Sprintf("%s does not exist", args.Path)}
+			}
+			return Result{Passed: false, Error: fmt.Sprintf("read %s: %v", args.Path, err)}
 		}
-		return Result{Passed: false, Error: fmt.Sprintf("read %s: %v", args.Path, err)}
+		content = string(data)
+	} else {
+		// Remote read: `cat` the file on the node via runOn. A missing file
+		// surfaces "No such file or directory" in the combined ssh output.
+		out, err := runOn(c.Host, "cat", "--", args.Path)
+		if err != nil {
+			if strings.Contains(out, "No such file") {
+				return Result{Passed: false, Detail: fmt.Sprintf("%s does not exist on %s", args.Path, c.Host)}
+			}
+			return Result{Passed: false, Error: fmt.Sprintf("read %s on %s: %v: %s", args.Path, c.Host, err, strings.TrimSpace(out))}
+		}
+		content = out
 	}
-	content := string(data)
 
 	switch {
 	case args.Equals != "":
