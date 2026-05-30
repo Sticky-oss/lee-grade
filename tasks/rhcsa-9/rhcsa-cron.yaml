@@ -1,0 +1,28 @@
+# RHCSA (EX200): a scheduled task in a user's crontab.
+# Worked solution: tasks/rhcsa-9/solutions/rhcsa-cron/solve.sh
+schema_version: 1
+id: rhcsa-cron
+title: Scheduled backup job
+domain: scheduled-tasks
+track: rhcsa-9
+time_minutes: 10
+description: |
+  - Install a script /usr/local/bin/backup.sh (executable, mode 0755).
+  - Schedule it in user dba's crontab to run every day at 03:00.
+
+checks:
+  - id: backup-script
+    description: /usr/local/bin/backup.sh exists and is executable (0755)
+    hint: 'install -m 0755 a script at /usr/local/bin/backup.sh'
+    type: file
+    path: /usr/local/bin/backup.sh
+    kind: file
+    mode: 0755
+
+  - id: dba-cron
+    description: dba has a 03:00 daily cron entry running /usr/local/bin/backup.sh
+    hint: "crontab -u dba: '0 3 * * * /usr/local/bin/backup.sh'"
+    type: cron-job
+    user: dba
+    schedule: "0 3 * * *"
+    command: /usr/local/bin/backup.sh

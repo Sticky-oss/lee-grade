@@ -1,0 +1,34 @@
+# RHCSA (EX200): a collaborative setgid directory.
+# Worked solution: tasks/rhcsa-9/solutions/rhcsa-shared-dir/solve.sh
+schema_version: 1
+id: rhcsa-shared-dir
+title: Collaborative setgid directory
+domain: permissions
+track: rhcsa-9
+time_minutes: 10
+description: |
+  Create /srv/teamdata as a group-collaborative directory:
+    - owned by group "dbadmins"
+    - mode 2770 (setgid set, so new files inherit the group; no access for others)
+
+checks:
+  - id: teamdata-is-dir
+    description: /srv/teamdata is a directory
+    hint: 'mkdir -p /srv/teamdata'
+    type: file
+    path: /srv/teamdata
+    kind: directory
+
+  - id: teamdata-group
+    description: /srv/teamdata is group-owned by dbadmins
+    hint: 'chgrp dbadmins /srv/teamdata'
+    type: file
+    path: /srv/teamdata
+    group: dbadmins
+
+  - id: teamdata-mode
+    description: /srv/teamdata is mode 2770 (setgid)
+    hint: 'chmod 2770 /srv/teamdata'
+    type: file
+    path: /srv/teamdata
+    mode: 02770

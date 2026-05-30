@@ -1,0 +1,33 @@
+# RHCSA (EX200): install and persist a service, and open it in the firewall.
+# Worked solution: tasks/rhcsa-9/solutions/rhcsa-web-firewall/solve.sh
+schema_version: 1
+id: rhcsa-web-firewall
+title: Web server with a permanent firewall rule
+domain: services-firewall
+track: rhcsa-9
+time_minutes: 15
+description: |
+  - Install httpd; enable it at boot and start it now.
+  - Permanently allow the http service through the default firewalld zone.
+
+checks:
+  - id: httpd-installed
+    description: the httpd package is installed
+    hint: 'dnf install -y httpd'
+    type: package-installed
+    name: httpd
+
+  - id: httpd-running
+    description: httpd is enabled at boot and running now
+    hint: 'systemctl enable --now httpd'
+    type: service-state
+    unit: httpd
+    enabled: true
+    active: true
+
+  - id: http-firewall
+    description: http is permanently allowed in the firewall
+    hint: 'firewall-cmd --permanent --add-service=http && firewall-cmd --reload'
+    type: firewall
+    service: http
+    permanent: true

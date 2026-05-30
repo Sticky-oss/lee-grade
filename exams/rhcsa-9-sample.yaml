@@ -1,0 +1,19 @@
+# Sample RHCSA / EX200 sitting: the six core-objective tasks graded as one
+# timed exam against the 70% pass mark. Task paths are relative to this file.
+# Run on the Rocky 9 VM (these grade local host state, so run as root):
+#
+#   sudo lee-grade exam start exams/rhcsa-9-sample.yaml
+#   sudo lee-grade exam grade
+schema_version: 1
+id: rhcsa-9-sample
+title: RHCSA 9 (EX200) — sample sitting
+track: rhcsa-9
+time_minutes: 150
+pass_percent: 70
+tasks:
+  - ../tasks/rhcsa-9/rhcsa-users-sudo.yaml
+  - ../tasks/rhcsa-9/rhcsa-shared-dir.yaml
+  - ../tasks/rhcsa-9/rhcsa-cron.yaml
+  - ../tasks/rhcsa-9/rhcsa-web-firewall.yaml
+  - ../tasks/rhcsa-9/rhcsa-selinux.yaml
+  - ../tasks/rhcsa-9/rhcsa-storage.yaml

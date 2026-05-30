@@ -1,0 +1,33 @@
+# RHCSA (EX200): SELinux enforcement, a file context, and a boolean.
+# Worked solution: tasks/rhcsa-9/solutions/rhcsa-selinux/solve.sh
+schema_version: 1
+id: rhcsa-selinux
+title: SELinux enforcement, context and boolean
+domain: selinux
+track: rhcsa-9
+time_minutes: 15
+description: |
+  - Ensure SELinux is in enforcing mode.
+  - Create /srv/web and give it the httpd_sys_content_t file context (persistently).
+  - Turn the httpd_can_network_connect boolean on (persistently).
+
+checks:
+  - id: selinux-enforcing
+    description: SELinux is in enforcing mode
+    hint: 'setenforce 1 and set SELINUX=enforcing in /etc/selinux/config'
+    type: selinux
+    mode: enforcing
+
+  - id: web-context
+    description: /srv/web is labeled httpd_sys_content_t
+    hint: "semanage fcontext -a -t httpd_sys_content_t '/srv/web(/.*)?' && restorecon -R /srv/web"
+    type: selinux
+    path: /srv/web
+    setype: httpd_sys_content_t
+
+  - id: httpd-network-boolean
+    description: the httpd_can_network_connect boolean is on
+    hint: 'setsebool -P httpd_can_network_connect on'
+    type: selinux
+    boolean: httpd_can_network_connect
+    state: "on"

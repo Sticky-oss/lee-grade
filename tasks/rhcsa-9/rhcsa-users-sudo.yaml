@@ -1,0 +1,50 @@
+# RHCSA (EX200): users, groups, supplementary membership and sudo.
+# Worked solution: tasks/rhcsa-9/solutions/rhcsa-users-sudo/solve.sh
+schema_version: 1
+id: rhcsa-users-sudo
+title: Users, groups and sudo
+domain: user-group-management
+track: rhcsa-9
+time_minutes: 15
+description: |
+  - Create group "dbadmins" with GID 4000.
+  - Create user "dba" with UID 3001 and login shell /bin/bash, in the
+    supplementary groups "wheel" and "dbadmins".
+  - Grant the dbadmins group full sudo via a drop-in /etc/sudoers.d/dbadmins.
+
+checks:
+  - id: dbadmins-group
+    description: group dbadmins exists with GID 4000
+    hint: 'groupadd -g 4000 dbadmins'
+    type: group
+    name: dbadmins
+    gid: 4000
+
+  - id: dba-user
+    description: user dba exists with UID 3001 and shell /bin/bash
+    hint: 'useradd -u 3001 -s /bin/bash -G wheel,dbadmins dba'
+    type: user
+    name: dba
+    uid: 3001
+    shell: /bin/bash
+
+  - id: dba-in-wheel
+    description: dba is a member of wheel
+    hint: 'usermod -aG wheel dba'
+    type: user-in-group
+    user: dba
+    group: wheel
+
+  - id: dba-in-dbadmins
+    description: dba is a member of dbadmins
+    hint: 'usermod -aG dbadmins dba'
+    type: user-in-group
+    user: dba
+    group: dbadmins
+
+  - id: dbadmins-sudo
+    description: /etc/sudoers.d/dbadmins grants the dbadmins group sudo
+    hint: "echo '%dbadmins ALL=(ALL) ALL' > /etc/sudoers.d/dbadmins"
+    type: file-content
+    path: /etc/sudoers.d/dbadmins
+    contains: "%dbadmins"

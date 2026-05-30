@@ -1,0 +1,35 @@
+# RHCSA (EX200): an extra filesystem mounted persistently.
+# Worked solution: tasks/rhcsa-9/solutions/rhcsa-storage/solve.sh
+# (Uses a loopback-backed image so it works on the lab VM without spare disks;
+# on a real exam this would be an LVM logical volume or a partition.)
+schema_version: 1
+id: rhcsa-storage
+title: Persistent extra filesystem
+domain: storage
+track: rhcsa-9
+time_minutes: 20
+description: |
+  - Provision an xfs filesystem and mount it at /mnt/data.
+  - Make the mount persistent across reboots via /etc/fstab.
+
+checks:
+  - id: data-mountpoint
+    description: /mnt/data is a directory
+    hint: 'mkdir -p /mnt/data'
+    type: file
+    path: /mnt/data
+    kind: directory
+
+  - id: data-mounted-xfs
+    description: /mnt/data is mounted as xfs
+    hint: 'mkfs.xfs the device, then mount it at /mnt/data'
+    type: mount
+    mountpoint: /mnt/data
+    fstype: xfs
+
+  - id: data-in-fstab
+    description: /mnt/data is listed in /etc/fstab (persistent)
+    hint: 'add a /mnt/data line to /etc/fstab so it mounts on boot'
+    type: file-content
+    path: /etc/fstab
+    contains: /mnt/data
