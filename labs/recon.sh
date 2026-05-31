@@ -13,6 +13,8 @@ printf '  %sINSTRUMENTS%s  %s%s graded check types I can run against a host%s\n'
 printf '\n\n  %sTRAINING TRACKS%s\n' "$Y" "$R"
 printf '    RHCSA (EX200)   12 directives    %sexam rhcsa%s · %sexam rhcsa-full%s · %slab list%s\n' "$G" "$R" "$G" "$R" "$G" "$R"
 printf '    RHCE  (EX294)    ansible track    %sexam rhce%s\n' "$G" "$R"
+printf '\n  %sPROGRESS%s  %s(per-task best/last score — full table: %slab status%s)%s\n' "$Y" "$R" "$D" "$G" "$D" "$R"
+"$BIN" --progress 2>/dev/null | tail -n +2 | head -n 6 | sed 's/^/  /'
 printf '\n  %sFIELD CLUSTER%s\n' "$Y" "$R"
 if sudo podman ps --format '{{.Names}}' 2>/dev/null | grep -q '^node'; then
   sudo podman ps --format "    {{.Names}}  {{.Status}}" 2>/dev/null

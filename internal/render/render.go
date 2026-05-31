@@ -19,6 +19,12 @@ import (
 // clean.
 var AnsiSupported = false
 
+// ShowTeaching gates the per-check coaching lines (the failing-state detail and
+// the why/hint). Default true. `lee-grade --no-teach` (lab challenge) sets it
+// false so a graded attempt shows only pass/fail glyphs and the score — no
+// detail, no why, no command — turning practice into a real self-test.
+var ShowTeaching = true
+
 const (
 	fg     = "\x1b[39m"
 	dim    = "\x1b[90m"
@@ -67,11 +73,16 @@ func Human(w io.Writer, tr *check.TaskResult) {
 			icon, colour = "✗", c(red)
 		}
 		fmt.Fprintln(w, c(blue)+"│ "+c(reset)+colour+icon+c(reset)+" "+clean(r.Description))
-		if r.Detail != "" && !r.Passed {
-			fmt.Fprintln(w, c(blue)+"│ "+c(reset)+"    "+c(dim)+clean(r.Detail)+c(reset))
-		}
+		// An Error is a malfunction, not a hint, so it always shows. Everything
+		// else below is coaching and is suppressed in --no-teach challenge mode.
 		if r.Error != "" {
 			fmt.Fprintln(w, c(blue)+"│ "+c(reset)+"    "+c(yellow)+"error: "+clean(r.Error)+c(reset))
+		}
+		if !ShowTeaching {
+			continue
+		}
+		if r.Detail != "" && !r.Passed {
+			fmt.Fprintln(w, c(blue)+"│ "+c(reset)+"    "+c(dim)+clean(r.Detail)+c(reset))
 		}
 		// Teach the concept (why) on failure rather than handing over the
 		// command; fall back to the hint command for checks not yet annotated.

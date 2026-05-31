@@ -46,6 +46,8 @@ func main() {
 	showVersion := flag.Bool("version", false, "print version + commit and exit")
 	describe := flag.Bool("describe", false, "print the task brief (scenario + graded objectives) and exit; no grading")
 	steps := flag.Bool("steps", false, "output each objective + its hint as TSV, one per line (used by lab guided)")
+	progress := flag.Bool("progress", false, "print your per-task progress ledger (best/last score, attempts) and exit")
+	noTeach := flag.Bool("no-teach", false, "challenge mode: grade with pass/fail glyphs and score only — no detail, why, or hint")
 	hostsPath := flag.String("hosts", "", "path to a hosts YAML mapping names to SSH targets; lets checks with a 'host:' grade managed nodes remotely")
 	rebootTest := flag.Bool("reboot-test", false, "grade, reboot, then re-grade to prove the config survives a reboot (root; needs --task/--tasks-dir)")
 	rebootResume := flag.Bool("reboot-test-resume", false, "internal: post-boot phase of --reboot-test, invoked by the generated systemd unit")
@@ -59,6 +61,11 @@ func main() {
 		for _, t := range check.RegisteredTypes() {
 			fmt.Println(t)
 		}
+		return
+	}
+	// --progress reads the ledger; it needs no task target.
+	if *progress {
+		printProgress(os.Stdout, !*noColor && isTerminal(os.Stdout))
 		return
 	}
 	// Reboot-persistence mode (v0.3). --reboot-test-resume is the hidden
@@ -90,6 +97,8 @@ func main() {
 
 	// Colour is on iff stdout is a TTY AND the user didn't disable it.
 	render.AnsiSupported = !*noColor && !*jsonOut && isTerminal(os.Stdout)
+	// --no-teach suppresses the coaching lines, turning a grade into a self-test.
+	render.ShowTeaching = !*noTeach
 
 	if *hostsPath != "" {
 		if err := loadHosts(*hostsPath); err != nil {
@@ -136,6 +145,8 @@ func main() {
 		if !tr.FullyPassed() {
 			allPassed = false
 		}
+		// Fold the result into the progress ledger (best-effort; never fatal).
+		recordResult(t.ID, t.Title, tr.Passed, tr.Total, tr.Percent)
 		if *quiet {
 			continue
 		}

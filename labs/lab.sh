@@ -131,6 +131,8 @@ do_solve(){ if [ "${TRACK[$1]}" = rhce ]; then rhce_solve "$1"; return; fi; loca
 
 cmd_brief(){ "$BIN" --task "$(taskfile "$1")" --describe; }
 cmd_grade(){ "$BIN" --task "$(taskfile "$1")"; }
+cmd_challenge(){ printf '%s░ CALYX challenge ░%s  no detail, no why, no hint — just the verdict. Prove it cold.\n\n' "$M" "$R"; "$BIN" --task "$(taskfile "$1")" --no-teach; }
+cmd_status(){ "$BIN" --progress; }
 cmd_start(){ do_setup "$1"; printf '%s▸ lab started%s — clean slate laid down for this directive.\n\n' "$G" "$R"; cmd_brief "$1"; printf '\n  %sWork the objectives, then:%s  %slab grade %s%s   (guided walk: %slab guided %s%s)\n' "$D" "$R" "$B" "$1" "$R" "$B" "$1" "$R"; printf '  %sWhen done:%s  %slab finish %s%s restores baseline (or %slab reset%s for all)\n' "$D" "$R" "$B" "$1" "$R" "$B" "$R"; }
 cmd_solve(){ do_solve "$1"; printf '%sapplied the worked solution for %s. Grade with:  lab grade %s%s\n' "$Y" "$1" "$1" "$R"; }
 cmd_finish(){ do_cleanup "$1"; printf '%s▸ directive %s reset to baseline.%s\n' "$G" "$1" "$R"; }
@@ -165,14 +167,15 @@ cmd_list(){
   for t in "${RHCE[@]}"; do printf '    %s%-13s%s %s%s%s\n' "$G" "$t" "$R" "$D" "$(title_of "$t")" "$R"; done
   printf '\n  %sCySA+ (security ops)%s\n' "$C" "$R"
   for t in "${CYSA[@]}"; do printf '    %s%-13s%s %s%s%s\n' "$G" "$t" "$R" "$D" "$(title_of "$t")" "$R"; done
-  printf '\nusage: %slab {brief|start|guided|grade|solve|finish} <id>%s   ·   %slab reset%s\n' "$B" "$R" "$B" "$R"
+  printf '\nusage: %slab {brief|start|guided|grade|challenge|solve|finish} <id>%s   ·   %slab status%s   ·   %slab reset%s\n' "$B" "$R" "$B" "$R" "$B" "$R"
 }
 
 verb=${1:-list}
 case "$verb" in
   list|"") cmd_list ;;
+  status|progress) cmd_status ;;
   reset|reset-all) cmd_reset ;;
-  brief|start|guided|grade|solve|finish)
+  brief|start|guided|grade|challenge|solve|finish)
     t=${2:-}; [ -n "$t" ] || die "usage: lab $verb <id>  (see: lab list)"
     t=${t#rhcsa-}; t=${t#rhce-}; t=${t#cysa-}; known "$t" || die "unknown directive '$t' (see: lab list)"
     case "$verb" in
@@ -180,6 +183,7 @@ case "$verb" in
       start)  cmd_start  "$t" ;;
       guided) cmd_guided "$t" ;;
       grade)  cmd_grade  "$t" ;;
+      challenge) cmd_challenge "$t" ;;
       solve)  cmd_solve  "$t" ;;
       finish) cmd_finish "$t" ;;
     esac ;;
