@@ -63,6 +63,10 @@ echo "########## wait for sshd + collect IPs ##########"
 : > "$MN/inventory_hosts"
 for n in node1 node2; do
   ip=$(sudo podman inspect -f '{{.NetworkSettings.Networks.leenet.IPAddress}}' "$n")
+  if [ -z "$ip" ]; then
+    echo "multinode-setup: $n has no IP on the leenet network — aborting (check: sudo podman logs $n)" >&2
+    exit 1
+  fi
   for i in $(seq 1 30); do
     if ssh -n -i "$MN/ansible_node" -o StrictHostKeyChecking=no -o ConnectTimeout=2 -o BatchMode=yes "ansible@$ip" true 2>/dev/null; then break; fi
     sleep 1

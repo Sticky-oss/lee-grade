@@ -14,6 +14,7 @@
 package task
 
 import (
+	"bytes"
 	"fmt"
 
 	"gopkg.in/yaml.v3"
@@ -107,7 +108,12 @@ func (c *Check) DecodeArgs(out any) error {
 	if err != nil {
 		return fmt.Errorf("check %q: marshal args: %w", c.ID, err)
 	}
-	if err := yaml.Unmarshal(data, out); err != nil {
+	// KnownFields(true) rejects any key the target arg struct doesn't define, so
+	// a misspelled argument (e.g. `onwer:` for `owner:`) errors loudly instead
+	// of silently decoding to the zero value and grading wrong.
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+	dec.KnownFields(true)
+	if err := dec.Decode(out); err != nil {
 		return fmt.Errorf("check %q: invalid arguments: %w", c.ID, err)
 	}
 	return nil
@@ -126,9 +132,9 @@ func (t *Task) Validate() error {
 	if len(t.Checks) == 0 {
 		return fmt.Errorf("task %q has no checks", t.ID)
 	}
-	if t.SchemaVersion != 0 && t.SchemaVersion > CurrentSchemaVersion {
+	if t.SchemaVersion < 0 || t.SchemaVersion > CurrentSchemaVersion {
 		return fmt.Errorf(
-			"task %q declares schema_version=%d but this lee-grade understands at most %d",
+			"task %q declares schema_version=%d but this lee-grade understands 1..%d",
 			t.ID, t.SchemaVersion, CurrentSchemaVersion,
 		)
 	}

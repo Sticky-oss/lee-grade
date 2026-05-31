@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/sticky-oss/lee-grade/internal/check"
 )
@@ -47,12 +48,14 @@ func c(code string) string {
 //   │ 2 / 3 checks passed                                          │
 //   └──────────────────────────────────────────────────────────────┘
 func Human(w io.Writer, tr *check.TaskResult) {
-	header := fmt.Sprintf("Task %s · %s", tr.TaskID, tr.Title)
+	header := clean(fmt.Sprintf("Task %s · %s", tr.TaskID, tr.Title))
 	if tr.Domain != "" {
-		header += fmt.Sprintf(" (%s)", tr.Domain)
+		header += " (" + clean(tr.Domain) + ")"
 	}
 	const innerWidth = 70
-	fmt.Fprintln(w, c(blue)+"┌─ "+header+" "+strings.Repeat("─", max(0, innerWidth-3-len(header)))+"┐"+c(reset))
+	// Width is rune-counted, not byte-counted, so a multibyte title doesn't
+	// throw off the right-border alignment.
+	fmt.Fprintln(w, c(blue)+"┌─ "+header+" "+strings.Repeat("─", max(0, innerWidth-3-utf8.RuneCountInString(header)))+"┐"+c(reset))
 	for _, r := range tr.Checks {
 		var icon, colour string
 		switch {
@@ -63,15 +66,15 @@ func Human(w io.Writer, tr *check.TaskResult) {
 		default:
 			icon, colour = "✗", c(red)
 		}
-		fmt.Fprintln(w, c(blue)+"│ "+c(reset)+colour+icon+c(reset)+" "+r.Description)
+		fmt.Fprintln(w, c(blue)+"│ "+c(reset)+colour+icon+c(reset)+" "+clean(r.Description))
 		if r.Detail != "" && !r.Passed {
-			fmt.Fprintln(w, c(blue)+"│ "+c(reset)+"    "+c(dim)+r.Detail+c(reset))
+			fmt.Fprintln(w, c(blue)+"│ "+c(reset)+"    "+c(dim)+clean(r.Detail)+c(reset))
 		}
 		if r.Error != "" {
-			fmt.Fprintln(w, c(blue)+"│ "+c(reset)+"    "+c(yellow)+"error: "+r.Error+c(reset))
+			fmt.Fprintln(w, c(blue)+"│ "+c(reset)+"    "+c(yellow)+"error: "+clean(r.Error)+c(reset))
 		}
 		if !r.Passed && r.Hint != "" {
-			fmt.Fprintln(w, c(blue)+"│ "+c(reset)+"    "+c(dim)+"hint: "+c(reset)+r.Hint)
+			fmt.Fprintln(w, c(blue)+"│ "+c(reset)+"    "+c(dim)+"hint: "+c(reset)+clean(r.Hint))
 		}
 	}
 	fmt.Fprintln(w, c(blue)+"│"+c(reset))
@@ -100,4 +103,17 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// clean strips control characters (newlines, tabs, raw ESC/DEL, …) from
+// check-supplied strings so output captured from a host (e.g. a `command`
+// check's Detail) can't break the box framing or inject ANSI even under
+// --no-color.
+func clean(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return -1
+		}
+		return r
+	}, s)
 }

@@ -32,6 +32,7 @@ func LoadFile(path string) (*Task, error) {
 // alongside the successfully-loaded tasks — the caller decides whether
 // to abort or to grade what it can.
 func LoadDir(dir string) (tasks []*Task, errors []error) {
+	seen := map[string]string{} // task id -> path it was first loaded from
 	walkErr := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -48,6 +49,11 @@ func LoadDir(dir string) (tasks []*Task, errors []error) {
 			errors = append(errors, loadErr)
 			return nil
 		}
+		if prev, dup := seen[t.ID]; dup {
+			errors = append(errors, fmt.Errorf("%s: duplicate task id %q (already loaded from %s)", path, t.ID, prev))
+			return nil
+		}
+		seen[t.ID] = path
 		tasks = append(tasks, t)
 		return nil
 	})

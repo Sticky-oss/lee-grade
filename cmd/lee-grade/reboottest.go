@@ -194,6 +194,9 @@ func resumeRebootTest() int {
 		fmt.Fprintln(os.Stderr, "lee-grade: reboot-test resume: cannot reload tasks; disarming")
 		removeRebootUnit()
 		_ = os.Remove(rebootStateFile)
+		if code == 0 {
+			code = 1 // empty reload is still a failure, not success
+		}
 		return code
 	}
 
@@ -438,6 +441,8 @@ WantedBy=multi-user.target
 		return fmt.Errorf("write %s: %w", rebootUnitPath, err)
 	}
 	if out, err := exec.Command("systemctl", "enable", rebootUnitName).CombinedOutput(); err != nil {
+		// Don't leave a half-armed unit file on disk if enable failed.
+		_ = os.Remove(rebootUnitPath)
 		return fmt.Errorf("systemctl enable: %w: %s", err, strings.TrimSpace(string(out)))
 	}
 	return nil

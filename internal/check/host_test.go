@@ -75,8 +75,19 @@ func TestServiceState_remoteBuildsSSHCommand(t *testing.T) {
 		t.Errorf("ssh key missing in %v", gotArgs)
 	}
 	last := gotArgs[len(gotArgs)-1]
-	if last != "sudo -n 'systemctl' 'is-active' 'httpd'" {
+	if last != "sudo -n env LC_ALL=C 'systemctl' 'is-active' 'httpd'" {
 		t.Errorf("remote command = %q", last)
+	}
+}
+
+func TestServiceState_transportErrorIsError(t *testing.T) {
+	withHosts(t, map[string]HostSpec{"node2": {Address: "10.0.0.5"}})
+	stubRunCmd(t, func(name string, args ...string) (string, error) {
+		return "", errors.New("exit status 255") // ssh failed: no status word
+	})
+	r := checkServiceState(loadCheck(t, `{id: c, description: d, type: service-state, host: node2, unit: httpd, active: true}`))
+	if r.Passed || r.Error == "" {
+		t.Errorf("a transport failure must be an Error, not a clean pass/fail; got %+v", r)
 	}
 }
 

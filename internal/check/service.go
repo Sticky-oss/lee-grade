@@ -54,30 +54,42 @@ func checkServiceState(c *task.Check) Result {
 	}
 
 	if args.Active != nil {
-		out, _ := runOn(c.Host, "systemctl", "is-active", args.Unit)
-		isActive := strings.TrimSpace(out) == "active"
-		if isActive != *args.Active {
+		out, err := runOn(c.Host, "systemctl", "is-active", args.Unit)
+		state := strings.TrimSpace(out)
+		if !isActiveWord(state) {
+			// systemctl didn't answer with a recognized state — that's an
+			// inspection failure (ssh down, sudo denied, binary missing), not
+			// a "service is inactive" assertion result.
+			return Result{Error: fmt.Sprintf("could not query is-active for %s: %v (%s)", args.Unit, err, oneLine(out))}
+		}
+		if (state == "active") != *args.Active {
 			return Result{Passed: false, Detail: fmt.Sprintf(
 				"unit %s is-active = %q, want %s",
-				args.Unit, strings.TrimSpace(out),
-				ifThen(*args.Active, "active", "inactive"),
+				args.Unit, state, ifThen(*args.Active, "active", "inactive"),
 			)}
 		}
 	}
 	if args.Enabled != nil {
-		out, _ := runOn(c.Host, "systemctl", "is-enabled", args.Unit)
-		isEnabled := strings.TrimSpace(out) == "enabled" || strings.TrimSpace(out) == "alias"
+		out, err := runOn(c.Host, "systemctl", "is-enabled", args.Unit)
+		state := strings.TrimSpace(out)
+		if !isEnabledWord(state) {
+			return Result{Error: fmt.Sprintf("could not query is-enabled for %s: %v (%s)", args.Unit, err, oneLine(out))}
+		}
+		isEnabled := state == "enabled" || state == "enabled-runtime" || state == "alias"
 		if isEnabled != *args.Enabled {
 			return Result{Passed: false, Detail: fmt.Sprintf(
 				"unit %s is-enabled = %q, want %s",
-				args.Unit, strings.TrimSpace(out),
-				ifThen(*args.Enabled, "enabled", "not enabled"),
+				args.Unit, state, ifThen(*args.Enabled, "enabled", "not enabled"),
 			)}
 		}
 	}
 	if args.Masked != nil {
-		out, _ := runOn(c.Host, "systemctl", "is-enabled", args.Unit)
-		isMasked := strings.TrimSpace(out) == "masked"
+		out, err := runOn(c.Host, "systemctl", "is-enabled", args.Unit)
+		state := strings.TrimSpace(out)
+		if !isEnabledWord(state) {
+			return Result{Error: fmt.Sprintf("could not query is-enabled for %s: %v (%s)", args.Unit, err, oneLine(out))}
+		}
+		isMasked := strings.HasPrefix(state, "masked") // masked or masked-runtime
 		if isMasked != *args.Masked {
 			return Result{Passed: false, Detail: fmt.Sprintf(
 				"unit %s masked=%v, want masked=%v",
@@ -86,6 +98,26 @@ func checkServiceState(c *task.Check) Result {
 		}
 	}
 	return Result{Passed: true}
+}
+
+// isActiveWord reports whether s is a value `systemctl is-active` actually
+// emits, used to tell "systemctl answered" apart from a transport/tool failure.
+func isActiveWord(s string) bool {
+	switch s {
+	case "active", "inactive", "activating", "deactivating", "reloading", "failed", "unknown", "maintenance":
+		return true
+	}
+	return false
+}
+
+// isEnabledWord reports whether s is a value `systemctl is-enabled` emits.
+func isEnabledWord(s string) bool {
+	switch s {
+	case "enabled", "enabled-runtime", "disabled", "static", "indirect",
+		"masked", "masked-runtime", "alias", "generated", "transient", "bad", "not-found":
+		return true
+	}
+	return false
 }
 
 // packageInstalledArgs is the inline argument schema for `type: package-installed`.
@@ -125,11 +157,17 @@ func checkPackageInstalled(c *task.Check) Result {
 		}
 		return Result{Passed: false, Error: fmt.Sprintf("rpm -q %s: %v", args.Name, err)}
 	}
-	if args.Version != "" && !strings.HasPrefix(strings.Fields(out)[1], args.Version) {
-		return Result{Passed: false, Detail: fmt.Sprintf(
-			"package %s installed but version %q not present (got %q)",
-			args.Name, args.Version, strings.Fields(out)[1],
-		)}
+	if args.Version != "" {
+		fields := strings.Fields(out)
+		if len(fields) < 2 {
+			return Result{Error: fmt.Sprintf("rpm -q %s: unexpected output %q", args.Name, oneLine(out))}
+		}
+		if !strings.HasPrefix(fields[1], args.Version) {
+			return Result{Passed: false, Detail: fmt.Sprintf(
+				"package %s installed but version %q not present (got %q)",
+				args.Name, args.Version, fields[1],
+			)}
+		}
 	}
 	return Result{Passed: true}
 }

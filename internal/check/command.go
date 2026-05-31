@@ -56,7 +56,9 @@ func checkCommand(c *task.Check) Result {
 		return Result{Error: "check 'command' takes at most one of: equals, contains, matches"}
 	}
 
-	out, err := runOn(c.Host, "sh", "-c", args.Run)
+	// stdout only: a tool that warns on stderr while exiting 0 must not break
+	// an equals/matches assertion.
+	out, err := runOnStdout(c.Host, "sh", "-c", args.Run)
 	code := exitCode(err)
 	wantExit := 0
 	if args.Exit != nil {
@@ -89,13 +91,15 @@ func checkCommand(c *task.Check) Result {
 }
 
 // oneLine collapses command output to a single tidy line for Detail messages.
+// Truncation is rune-aware so it never splits a multi-byte UTF-8 character.
 func oneLine(s string) string {
 	s = strings.TrimSpace(strings.ReplaceAll(s, "\n", " "))
 	if s == "" {
 		return "(no output)"
 	}
-	if len(s) > 120 {
-		return s[:117] + "..."
+	r := []rune(s)
+	if len(r) > 120 {
+		return string(r[:117]) + "..."
 	}
 	return s
 }

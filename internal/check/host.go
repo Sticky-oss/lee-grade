@@ -2,6 +2,7 @@ package check
 
 import (
 	"fmt"
+	"os/exec"
 	"strconv"
 	"strings"
 )
@@ -82,8 +83,37 @@ func runOn(host, name string, args ...string) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("check targets host %q, but it is not in the --hosts file", host)
 	}
-	remote := "sudo -n " + shellJoin(append([]string{name}, args...))
-	return runCmd("ssh", append(ssh, remote)...)
+	return runCmd("ssh", append(ssh, remoteCmd(name, args...))...)
+}
+
+// remoteCmd builds the string ssh hands to the node's shell: run under
+// passwordless sudo, with LC_ALL=C so coreutils messages (e.g. "No such file
+// or directory", rpm "not installed") stay in the English form the checkers
+// match on regardless of the node's locale.
+func remoteCmd(name string, args ...string) string {
+	return "sudo -n env LC_ALL=C " + shellJoin(append([]string{name}, args...))
+}
+
+// runCmdOut is like runCmd but captures stdout ONLY (not stderr). The command
+// check uses it so a tool that writes a warning to stderr while exiting 0
+// doesn't pollute an equals/matches assertion. A package var for the test seam.
+var runCmdOut = func(name string, args ...string) (string, error) {
+	out, err := exec.Command(name, args...).Output()
+	return string(out), err
+}
+
+// runOnStdout mirrors runOn but returns stdout only (via runCmdOut). For a
+// remote run, ssh forwards the node's stdout to ssh's stdout, so capturing
+// ssh's stdout yields the remote command's stdout.
+func runOnStdout(host, name string, args ...string) (string, error) {
+	if host == "" {
+		return runCmdOut(name, args...)
+	}
+	ssh, ok := sshArgsFor(host)
+	if !ok {
+		return "", fmt.Errorf("check targets host %q, but it is not in the --hosts file", host)
+	}
+	return runCmdOut("ssh", append(ssh, remoteCmd(name, args...))...)
 }
 
 // shellJoin renders a command + args as a single POSIX-sh-safe string for the

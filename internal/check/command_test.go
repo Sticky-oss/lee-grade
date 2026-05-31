@@ -6,8 +6,16 @@ import (
 	"testing"
 )
 
+// stubRunCmdOut swaps the stdout-only runner the command check uses.
+func stubRunCmdOut(t *testing.T, fn func(name string, args ...string) (string, error)) {
+	t.Helper()
+	orig := runCmdOut
+	runCmdOut = fn
+	t.Cleanup(func() { runCmdOut = orig })
+}
+
 func TestCommand_equalsPass(t *testing.T) {
-	stubRunCmd(t, func(name string, args ...string) (string, error) {
+	stubRunCmdOut(t, func(name string, args ...string) (string, error) {
 		return "multi-user.target\n", nil
 	})
 	r := checkCommand(loadCheck(t, `{id: c, description: d, type: command, run: systemctl get-default, equals: multi-user.target}`))
@@ -17,7 +25,7 @@ func TestCommand_equalsPass(t *testing.T) {
 }
 
 func TestCommand_equalsFail(t *testing.T) {
-	stubRunCmd(t, func(name string, args ...string) (string, error) {
+	stubRunCmdOut(t, func(name string, args ...string) (string, error) {
 		return "graphical.target\n", nil
 	})
 	r := checkCommand(loadCheck(t, `{id: c, description: d, type: command, run: systemctl get-default, equals: multi-user.target}`))
@@ -27,7 +35,7 @@ func TestCommand_equalsFail(t *testing.T) {
 }
 
 func TestCommand_containsAndExit(t *testing.T) {
-	stubRunCmd(t, func(name string, args ...string) (string, error) {
+	stubRunCmdOut(t, func(name string, args ...string) (string, error) {
 		return "NAME      TYPE  SIZE\n/swapfile file  512M\n", nil
 	})
 	r := checkCommand(loadCheck(t, `{id: c, description: d, type: command, run: "swapon --show", contains: /swapfile}`))
@@ -37,7 +45,7 @@ func TestCommand_containsAndExit(t *testing.T) {
 }
 
 func TestCommand_exitMismatch(t *testing.T) {
-	stubRunCmd(t, func(name string, args ...string) (string, error) {
+	stubRunCmdOut(t, func(name string, args ...string) (string, error) {
 		return "", errors.New("exit status 1")
 	})
 	r := checkCommand(loadCheck(t, `{id: c, description: d, type: command, run: "test -f /nope"}`))
@@ -48,17 +56,26 @@ func TestCommand_exitMismatch(t *testing.T) {
 
 func TestCommand_explicitNonZeroExit(t *testing.T) {
 	// runReal produces a genuine *exec.ExitError so exitCode extracts the code.
-	stubRunCmd(t, runReal)
+	stubRunCmdOut(t, runReal)
 	r := checkCommand(loadCheck(t, `{id: c, description: d, type: command, run: "exit 1", exit: 1}`))
 	if !r.Passed {
 		t.Fatalf("expected pass for matching exit code, got %+v", r)
 	}
 }
 
+// TestCommand_stdoutOnly runs for real (no stub) to prove stderr does not
+// pollute an equals assertion — the regression this fix addresses.
+func TestCommand_stdoutOnly(t *testing.T) {
+	r := checkCommand(loadCheck(t, `{id: c, description: d, type: command, run: "echo OUT; echo ERR 1>&2", equals: OUT}`))
+	if !r.Passed {
+		t.Fatalf("stderr should be ignored for equals; got %+v", r)
+	}
+}
+
 func TestCommand_remoteRunsViaSSHShell(t *testing.T) {
 	withHosts(t, map[string]HostSpec{"node1": {Address: "10.0.0.4", User: "ansible"}})
 	var last string
-	stubRunCmd(t, func(name string, args ...string) (string, error) {
+	stubRunCmdOut(t, func(name string, args ...string) (string, error) {
 		if name != "ssh" {
 			t.Errorf("remote command should run via ssh, got %q", name)
 		}

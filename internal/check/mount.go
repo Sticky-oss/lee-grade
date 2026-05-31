@@ -126,10 +126,6 @@ func optionsContain(optsCsv, want string) bool {
 		if o == want {
 			return true
 		}
-		// Match key portion for opt=value pairs like "uid=1000".
-		if i := strings.IndexByte(want, '='); i >= 0 && strings.HasPrefix(o, want[:i+1]) {
-			return o == want
-		}
 	}
 	return false
 }

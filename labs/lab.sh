@@ -42,6 +42,11 @@ taskfile(){ echo "${FILE[$1]}"; }
 fn(){ echo "t_${1//-/_}_$2"; }
 title_of(){ grep -m1 '^title:' "$(taskfile "$1")" | sed 's/^title:[[:space:]]*//'; }
 
+# snapshot/restore: back a system file up before a solve mutates it (once), so
+# cleanup restores the EXACT original instead of guessing the stock default.
+snapshot(){ [ -f "$1" ] && [ ! -f "$1.lee-orig" ] && cp -a "$1" "$1.lee-orig"; true; }
+restore(){ if [ -f "$1.lee-orig" ]; then cp -a "$1.lee-orig" "$1"; rm -f "$1.lee-orig"; fi; true; }
+
 # ════════════════════════ RHCSA per-task hooks ════════════════════════
 t_users_sudo_cleanup(){ userdel -r dba 2>/dev/null; groupdel dbadmins 2>/dev/null; rm -f /etc/sudoers.d/dbadmins; true; }
 t_users_sudo_solve(){ groupadd -g 4000 dbadmins 2>/dev/null; id dba >/dev/null 2>&1 || useradd -u 3001 -s /bin/bash dba; usermod -s /bin/bash -aG wheel,dbadmins dba; echo '%dbadmins ALL=(ALL) ALL' >/etc/sudoers.d/dbadmins; chmod 0440 /etc/sudoers.d/dbadmins; }
@@ -61,7 +66,7 @@ t_web_firewall_solve(){ dnf install -y httpd >/dev/null 2>&1; systemctl enable -
 t_selinux_cleanup(){ rm -rf /srv/web; semanage fcontext -d '/srv/web(/.*)?' 2>/dev/null; setsebool -P httpd_can_network_connect off 2>/dev/null; true; }
 t_selinux_solve(){ setenforce 1 2>/dev/null; mkdir -p /srv/web; semanage fcontext -a -t httpd_sys_content_t '/srv/web(/.*)?' 2>/dev/null || semanage fcontext -m -t httpd_sys_content_t '/srv/web(/.*)?' 2>/dev/null; restorecon -R /srv/web 2>/dev/null; setsebool -P httpd_can_network_connect on 2>/dev/null; }
 
-t_storage_cleanup(){ umount /mnt/data 2>/dev/null; sed -i '\#/mnt/data#d' /etc/fstab; rm -rf /mnt/data /var/lib/lee-disk.img; true; }
+t_storage_cleanup(){ umount /mnt/data 2>/dev/null; sed -i '\#[[:space:]]/mnt/data[[:space:]]#d' /etc/fstab; rm -rf /mnt/data /var/lib/lee-disk.img; true; }
 t_storage_setup(){ t_storage_cleanup; dd if=/dev/zero of=/var/lib/lee-disk.img bs=1M count=300 status=none; true; }
 t_storage_solve(){ [ -f /var/lib/lee-disk.img ] || dd if=/dev/zero of=/var/lib/lee-disk.img bs=1M count=300 status=none; blkid /var/lib/lee-disk.img >/dev/null 2>&1 || mkfs.xfs -q /var/lib/lee-disk.img; mkdir -p /mnt/data; mountpoint -q /mnt/data || mount -o loop /var/lib/lee-disk.img /mnt/data; grep -q '[[:space:]]/mnt/data[[:space:]]' /etc/fstab || echo '/var/lib/lee-disk.img /mnt/data xfs loop 0 0' >>/etc/fstab; }
 
@@ -75,11 +80,11 @@ t_time_solve(){ systemctl enable --now chronyd >/dev/null 2>&1; timedatectl set-
 t_tuned_cleanup(){ systemctl disable --now tuned >/dev/null 2>&1; dnf remove -y tuned >/dev/null 2>&1; true; }
 t_tuned_solve(){ dnf install -y tuned >/dev/null 2>&1; systemctl enable --now tuned >/dev/null 2>&1; tuned-adm profile virtual-guest 2>/dev/null; }
 
-t_swap_cleanup(){ swapoff /swapfile 2>/dev/null; sed -i '\#/swapfile#d' /etc/fstab; rm -f /swapfile; true; }
+t_swap_cleanup(){ swapoff /swapfile 2>/dev/null; sed -i '\#^/swapfile[[:space:]]#d' /etc/fstab; rm -f /swapfile; true; }
 t_swap_solve(){ [ -f /swapfile ] || dd if=/dev/zero of=/swapfile bs=1M count=256 status=none; chmod 0600 /swapfile; swapon --show=NAME --noheadings | grep -q /swapfile || { mkswap /swapfile >/dev/null 2>&1; swapon /swapfile 2>/dev/null; }; grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap defaults 0 0' >>/etc/fstab; }
 
-t_journald_cleanup(){ sed -i 's/^Storage=persistent/#Storage=auto/' /etc/systemd/journald.conf 2>/dev/null; rm -rf /var/log/journal; systemctl restart systemd-journald >/dev/null 2>&1; true; }
-t_journald_solve(){ mkdir -p /var/log/journal; if grep -q '^#\?Storage=' /etc/systemd/journald.conf; then sed -i 's/^#\?Storage=.*/Storage=persistent/' /etc/systemd/journald.conf; else sed -i '/^\[Journal\]/a Storage=persistent' /etc/systemd/journald.conf; fi; systemctl restart systemd-journald >/dev/null 2>&1; }
+t_journald_cleanup(){ restore /etc/systemd/journald.conf; rm -rf /var/log/journal; systemctl restart systemd-journald >/dev/null 2>&1; true; }
+t_journald_solve(){ snapshot /etc/systemd/journald.conf; mkdir -p /var/log/journal; if grep -q '^#\?Storage=' /etc/systemd/journald.conf; then sed -i 's/^#\?Storage=.*/Storage=persistent/' /etc/systemd/journald.conf; else sed -i '/^\[Journal\]/a Storage=persistent' /etc/systemd/journald.conf; fi; systemctl restart systemd-journald >/dev/null 2>&1; }
 
 t_acl_cleanup(){ rm -rf /srv/reports; userdel -r dba 2>/dev/null; true; }
 t_acl_setup(){ t_acl_cleanup; id dba >/dev/null 2>&1 || useradd -u 3001 -s /bin/bash dba; true; }
@@ -92,14 +97,14 @@ t_auditd_solve(){ echo '-w /etc/sudoers -p wa -k sudoers' > /etc/audit/rules.d/l
 t_ssh_hardening_cleanup(){ rm -f /etc/ssh/sshd_config.d/99-hardening.conf; true; }
 t_ssh_hardening_solve(){ printf 'PermitRootLogin no\nPasswordAuthentication no\n' > /etc/ssh/sshd_config.d/99-hardening.conf; }
 
-t_pwquality_cleanup(){ sed -i '/^minlen[[:space:]]*=[[:space:]]*12/d; /^dcredit[[:space:]]*=[[:space:]]*-1/d' /etc/security/pwquality.conf 2>/dev/null; true; }
-t_pwquality_solve(){ t_pwquality_cleanup; printf 'minlen = 12\ndcredit = -1\n' >> /etc/security/pwquality.conf; }
+t_pwquality_cleanup(){ restore /etc/security/pwquality.conf; true; }
+t_pwquality_solve(){ snapshot /etc/security/pwquality.conf; printf 'minlen = 12\ndcredit = -1\n' >> /etc/security/pwquality.conf; }
 
-t_sysctl_cleanup(){ rm -f /etc/sysctl.d/99-hardening.conf; sysctl -w net.ipv4.conf.all.accept_redirects=1 >/dev/null 2>&1; true; }
-t_sysctl_solve(){ echo 'net.ipv4.conf.all.accept_redirects = 0' > /etc/sysctl.d/99-hardening.conf; sysctl --system >/dev/null 2>&1; }
+t_sysctl_cleanup(){ rm -f /etc/sysctl.d/99-hardening.conf; if [ -f /var/lib/lee-sysctl-redirects.orig ]; then sysctl -w net.ipv4.conf.all.accept_redirects="$(cat /var/lib/lee-sysctl-redirects.orig)" >/dev/null 2>&1; rm -f /var/lib/lee-sysctl-redirects.orig; else sysctl -w net.ipv4.conf.all.accept_redirects=1 >/dev/null 2>&1; fi; true; }
+t_sysctl_solve(){ [ -f /var/lib/lee-sysctl-redirects.orig ] || sysctl -n net.ipv4.conf.all.accept_redirects > /var/lib/lee-sysctl-redirects.orig 2>/dev/null; echo 'net.ipv4.conf.all.accept_redirects = 0' > /etc/sysctl.d/99-hardening.conf; sysctl --system >/dev/null 2>&1; }
 
 t_rogue_account_cleanup(){ userdel -f shadow 2>/dev/null; true; }
-t_rogue_account_setup(){ t_rogue_account_cleanup; useradd -o -u 0 -M -s /sbin/nologin shadow 2>/dev/null; true; }
+t_rogue_account_setup(){ t_rogue_account_cleanup; useradd -o -u 0 -M -s /sbin/nologin shadow 2>/dev/null; passwd -l shadow >/dev/null 2>&1; true; }
 t_rogue_account_solve(){ userdel -f shadow 2>/dev/null; true; }
 
 t_suid_cleanup(){ rm -f /usr/local/bin/suspect; true; }
@@ -126,7 +131,7 @@ do_solve(){ if [ "${TRACK[$1]}" = rhce ]; then rhce_solve "$1"; return; fi; loca
 
 cmd_brief(){ "$BIN" --task "$(taskfile "$1")" --describe; }
 cmd_grade(){ "$BIN" --task "$(taskfile "$1")"; }
-cmd_start(){ do_setup "$1"; printf '%s▸ lab started%s — clean slate laid down for this directive.\n\n' "$G" "$R"; cmd_brief "$1"; printf '\n  %sWork the objectives, then:%s  %slab grade %s%s   (guided walk: %slab guided %s%s)\n' "$D" "$R" "$B" "$1" "$R" "$B" "$1" "$R"; }
+cmd_start(){ do_setup "$1"; printf '%s▸ lab started%s — clean slate laid down for this directive.\n\n' "$G" "$R"; cmd_brief "$1"; printf '\n  %sWork the objectives, then:%s  %slab grade %s%s   (guided walk: %slab guided %s%s)\n' "$D" "$R" "$B" "$1" "$R" "$B" "$1" "$R"; printf '  %sWhen done:%s  %slab finish %s%s restores baseline (or %slab reset%s for all)\n' "$D" "$R" "$B" "$1" "$R" "$B" "$R"; }
 cmd_solve(){ do_solve "$1"; printf '%sapplied the worked solution for %s. Grade with:  lab grade %s%s\n' "$Y" "$1" "$1" "$R"; }
 cmd_finish(){ do_cleanup "$1"; printf '%s▸ directive %s reset to baseline.%s\n' "$G" "$1" "$R"; }
 cmd_reset(){ local t; for t in "${RHCSA[@]}" "${RHCE[@]}" "${CYSA[@]}"; do do_cleanup "$t"; done; printf '%s▸ all directives reset to baseline.%s\n' "$G" "$R"; }
@@ -135,14 +140,16 @@ cmd_guided(){
   do_setup "$1"
   cmd_brief "$1"
   printf '\n%s░ CALYX guided drill ░%s  Run each command, then press Enter to advance.\n\n' "$M" "$R"
-  local total n=0
-  total=$("$BIN" --task "$(taskfile "$1")" --steps | wc -l)
+  local steps total n=0
+  steps=$("$BIN" --task "$(taskfile "$1")" --steps)
+  total=$(printf '%s\n' "$steps" | wc -l)
   while IFS=$'\t' read -r desc hint; do
-    n=$((n+1))
+    [ -z "$desc" ] && continue
+    n=$((n + 1))
     printf '  %sSTEP %d/%d%s  %s\n' "$Y" "$n" "$total" "$R" "$desc"
     [ -n "$hint" ] && printf '     %srun:%s  %s\n' "$D" "$R" "$hint"
     read -rp "     [Enter] when done... " _ </dev/tty || true
-  done < <("$BIN" --task "$(taskfile "$1")" --steps)
+  done <<< "$steps"
   printf '\n%s░ drill complete — CALYX assessing ░%s\n' "$M" "$R"
   cmd_grade "$1"
 }

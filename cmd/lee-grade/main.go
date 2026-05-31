@@ -103,9 +103,11 @@ func main() {
 		os.Exit(code)
 	}
 
-	// --describe short-circuits grading: just print each task's brief.
+	// --describe short-circuits grading: just print each task's brief. Use the
+	// single render.AnsiSupported value (already gated on --no-color, --json and
+	// TTY) so ANSI never leaks into a --json invocation.
 	if *describe {
-		color := !*noColor && isTerminal(os.Stdout)
+		color := render.AnsiSupported
 		for i, t := range tasks {
 			if i > 0 {
 				fmt.Println()

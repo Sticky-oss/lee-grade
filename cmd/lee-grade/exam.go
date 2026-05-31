@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -115,8 +116,9 @@ func examStart(args []string) int {
 	}
 
 	st := exam.NewState(e, examPath, time.Now())
-	if err := os.MkdirAll(rebootStateDir, 0o755); err != nil {
-		fmt.Fprintf(os.Stderr, "lee-grade: cannot create %s: %v\n", rebootStateDir, err)
+	stateDir := filepath.Dir(examStateFile)
+	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "lee-grade: cannot create %s: %v\n", stateDir, err)
 		return 1
 	}
 	if err := writeJSONFile(examStateFile, st); err != nil {
