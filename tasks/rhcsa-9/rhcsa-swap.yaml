@@ -16,6 +16,7 @@ checks:
   - id: swapfile-active
     description: /swapfile is active as swap
     hint: 'chmod 0600 /swapfile; mkswap /swapfile; swapon /swapfile'
+    why: "Swap must be formatted with mkswap and activated with swapon; a swap FILE also needs mode 0600 or mkswap warns it is insecure."
     type: command
     run: swapon --show=NAME --noheadings
     contains: /swapfile
@@ -23,6 +24,7 @@ checks:
   - id: swapfile-fstab
     description: /swapfile is listed in /etc/fstab (persistent)
     hint: 'add "/swapfile none swap defaults 0 0" to /etc/fstab'
+    why: "Like any mount, swap re-activates on boot only via an /etc/fstab entry."
     type: file-content
     path: /etc/fstab
     contains: /swapfile

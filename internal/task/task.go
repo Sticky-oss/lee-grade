@@ -81,6 +81,12 @@ type Check struct {
 	// would run.
 	Hint string `yaml:"hint,omitempty"`
 
+	// Why is a short conceptual explanation — the REASON behind the objective
+	// (e.g. "permanent firewall rules need --permanent AND --reload, else they
+	// vanish on the next reload"). Shown on failure and in guided mode so the
+	// feedback teaches the idea rather than handing over the command in Hint.
+	Why string `yaml:"why,omitempty"`
+
 	// Type is the check-type discriminator. Must match a registered impl.
 	Type string `yaml:"type"`
 

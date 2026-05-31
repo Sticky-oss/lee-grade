@@ -15,6 +15,7 @@ checks:
   - id: journal-dir
     description: /var/log/journal exists as a directory
     hint: 'mkdir -p /var/log/journal && systemctl restart systemd-journald'
+    why: "By default the journal is volatile (in /run) and lost on reboot; simply creating /var/log/journal makes it persistent."
     type: file
     path: /var/log/journal
     kind: directory
@@ -22,6 +23,7 @@ checks:
   - id: journald-storage
     description: journald is configured for persistent storage
     hint: 'set Storage=persistent in /etc/systemd/journald.conf'
+    why: "Storage=persistent in journald.conf makes persistence explicit and guaranteed (not dependent on the /var/log/journal dir alone); restart systemd-journald to apply."
     type: file-content
     path: /etc/systemd/journald.conf
     matches: '(?m)^Storage=persistent'

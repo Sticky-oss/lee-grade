@@ -16,6 +16,7 @@ checks:
   - id: chronyd-running
     description: chronyd is enabled and active
     hint: 'systemctl enable --now chronyd'
+    why: "chronyd syncs the clock to NTP; it must be enabled and active for the time to stay correct."
     type: service-state
     unit: chronyd
     enabled: true
@@ -24,6 +25,7 @@ checks:
   - id: timezone
     description: the system timezone is America/Toronto
     hint: 'timedatectl set-timezone America/Toronto'
+    why: "Timezone is separate from the clock: timedatectl set-timezone repoints /etc/localtime while the hardware clock stays UTC."
     type: command
     run: timedatectl show -p Timezone --value
     equals: America/Toronto

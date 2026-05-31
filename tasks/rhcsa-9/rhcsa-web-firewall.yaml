@@ -16,12 +16,14 @@ checks:
   - id: httpd-installed
     description: the httpd package is installed
     hint: 'dnf install -y httpd'
+    why: "Nothing serves until the package is present; dnf install is always step one."
     type: package-installed
     name: httpd
 
   - id: httpd-running
     description: httpd is enabled at boot and running now
     hint: 'systemctl enable --now httpd'
+    why: "enable = start on boot, start = run now. 'enable --now' does both; doing only one is the classic miss that fails after a reboot."
     type: service-state
     unit: httpd
     enabled: true
@@ -30,6 +32,7 @@ checks:
   - id: http-firewall
     description: http is permanently allowed in the firewall
     hint: 'firewall-cmd --permanent --add-service=http && firewall-cmd --reload'
+    why: "firewalld denies by default. A runtime rule opens the port now but vanishes on reload; only --permanent plus --reload survives a reboot."
     type: firewall
     service: http
     permanent: true

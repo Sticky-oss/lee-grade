@@ -15,6 +15,7 @@ checks:
   - id: tuned-running
     description: tuned is enabled and active
     hint: 'dnf install -y tuned; systemctl enable --now tuned'
+    why: "tuned applies a bundle of kernel and I/O tunings via a profile daemon; it must be running to enforce them."
     type: service-state
     unit: tuned
     enabled: true
@@ -23,6 +24,7 @@ checks:
   - id: tuned-profile
     description: the active tuning profile is virtual-guest
     hint: 'tuned-adm profile virtual-guest'
+    why: "tuned-adm profile <name> activates a profile; virtual-guest is tuned for VMs (less power-saving, better throughput). Check with tuned-adm active."
     type: command
     run: tuned-adm active
     contains: virtual-guest

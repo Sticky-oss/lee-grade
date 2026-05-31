@@ -117,11 +117,12 @@ func main() {
 		return
 	}
 
-	// --steps emits the objectives + hints as TSV for the guided stepper.
+	// --steps emits objective<TAB>why<TAB>hint as TSV for the guided stepper.
 	if *steps {
 		for _, t := range tasks {
 			for i := range t.Checks {
-				fmt.Printf("%s\t%s\n", t.Checks[i].Description, t.Checks[i].Hint)
+				c := &t.Checks[i]
+				fmt.Printf("%s\t%s\t%s\n", c.Description, c.Why, c.Hint)
 			}
 		}
 		return

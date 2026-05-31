@@ -16,6 +16,7 @@ checks:
   - id: reports-dir
     description: /srv/reports is a directory
     hint: 'mkdir -p /srv/reports'
+    why: "ACLs extend the owner/group/other model with per-user/per-group entries; the target still has to exist first."
     type: file
     path: /srv/reports
     kind: directory
@@ -23,6 +24,7 @@ checks:
   - id: dba-acl
     description: user dba has an rwx ACL entry on /srv/reports
     hint: 'setfacl -m u:dba:rwx /srv/reports'
+    why: "setfacl -m u:dba:rwx grants one named user access WITHOUT changing ownership; getfacl shows the entries, and ls -l flags a file carrying an ACL with a trailing '+'."
     type: command
     run: getfacl -p /srv/reports
     matches: '(?m)^user:dba:rwx'

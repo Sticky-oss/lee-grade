@@ -21,9 +21,14 @@ type Result struct {
 	Description string `json:"description"`
 	// Passed is true iff the check verified its end state.
 	Passed bool `json:"passed"`
-	// Hint is shown on failure — the canonical fix command, copied from
-	// Task.Checks[i].Hint when Passed is false. Empty on success.
+	// Hint is the canonical fix command, copied from Task.Checks[i].Hint when
+	// Passed is false. Surfaced via guided mode / on demand — not auto-dumped
+	// on a plain grade when a Why is present. Empty on success.
 	Hint string `json:"hint,omitempty"`
+	// Why is the conceptual reason behind the objective, copied from
+	// Task.Checks[i].Why. Shown on failure IN PLACE OF the command Hint so a
+	// grade teaches the idea instead of handing over the answer.
+	Why string `json:"why,omitempty"`
 	// Detail is a human-readable diagnostic ("file has mode 0644, want 0600")
 	// surfaced on failure. Implementations should populate this when it
 	// would help the learner understand why the check failed.
@@ -143,6 +148,9 @@ func RunTask(t *task.Task) *TaskResult {
 		}
 		if !r.Passed && r.Hint == "" {
 			r.Hint = c.Hint
+		}
+		if !r.Passed && r.Why == "" {
+			r.Why = c.Why
 		}
 		tr.Checks = append(tr.Checks, r)
 		if r.Passed {

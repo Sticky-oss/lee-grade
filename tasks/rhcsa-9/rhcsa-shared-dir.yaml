@@ -16,6 +16,7 @@ checks:
   - id: teamdata-is-dir
     description: /srv/teamdata is a directory
     hint: 'mkdir -p /srv/teamdata'
+    why: "A collaborative share is just a directory; the behaviour comes from its group ownership and the setgid bit, not the directory itself."
     type: file
     path: /srv/teamdata
     kind: directory
@@ -23,6 +24,7 @@ checks:
   - id: teamdata-group
     description: /srv/teamdata is group-owned by dbadmins
     hint: 'chgrp dbadmins /srv/teamdata'
+    why: "New files inherit a directory's GROUP only when the dir is group-owned by the team (and has setgid set)."
     type: file
     path: /srv/teamdata
     group: dbadmins
@@ -30,6 +32,7 @@ checks:
   - id: teamdata-mode
     description: /srv/teamdata is mode 2770 (setgid)
     hint: 'chmod 2770 /srv/teamdata'
+    why: "The leading 2 in 2770 is the setgid bit: files created here inherit the directory's group instead of the creator's. Plain 770 will not."
     type: file
     path: /srv/teamdata
     mode: 02770

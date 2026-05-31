@@ -15,6 +15,7 @@ checks:
   - id: backup-script
     description: /usr/local/bin/backup.sh exists and is executable (0755)
     hint: 'install -m 0755 a script at /usr/local/bin/backup.sh'
+    why: "cron runs the path you give it as that user; the script must be executable (0755) or the job fails silently."
     type: file
     path: /usr/local/bin/backup.sh
     kind: file
@@ -23,6 +24,7 @@ checks:
   - id: dba-cron
     description: dba has a 03:00 daily cron entry running /usr/local/bin/backup.sh
     hint: "crontab -u dba: '0 3 * * * /usr/local/bin/backup.sh'"
+    why: "User crontabs are per-user (crontab -u dba -e). The five time fields are min hour dom mon dow, so '0 3 * * *' means 03:00 every day."
     type: cron-job
     user: dba
     schedule: "0 3 * * *"

@@ -15,6 +15,7 @@ checks:
   - id: default-target
     description: the default boot target is multi-user.target
     hint: 'systemctl set-default multi-user.target'
+    why: "The default target is what systemd boots into; multi-user.target is text/server mode, graphical.target adds a GUI. systemctl set-default repoints the default.target symlink."
     type: command
     run: systemctl get-default
     equals: multi-user.target

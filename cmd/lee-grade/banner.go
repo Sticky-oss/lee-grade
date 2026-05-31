@@ -103,12 +103,12 @@ func printBanner(w io.Writer, color, animate bool) {
 	// ─── Footer + command hints ──────────────────────────────────────
 	fmt.Fprintf(w, "%s%s%s\n", bDim(color), sepLine, bReset(color))
 	fmt.Fprintln(w)
-	fmt.Fprintf(w, "  Type:  %slee-grade --task <task.yaml>%s    begin audit\n",
+	fmt.Fprintf(w, "  Type:  %srecon%s        systems status & training tracks\n",
 		bAmber(color), bReset(color))
-	fmt.Fprintf(w, "         %slee-grade --tasks-dir <dir>%s     grade a directory\n",
-		bAmber(color), bReset(color))
-	fmt.Fprintf(w, "         %slee-grade --help%s                full command reference\n",
-		bAmber(color), bReset(color))
+	fmt.Fprintf(w, "         %slab list%s     field directives  ·  %slab start <id>%s to begin\n",
+		bAmber(color), bReset(color), bAmber(color), bReset(color))
+	fmt.Fprintf(w, "         %sexam rhcsa%s   sit a certification  ·  %slee-grade --help%s for the raw CLI\n",
+		bAmber(color), bReset(color), bAmber(color), bReset(color))
 	fmt.Fprintln(w)
 	flush(w)
 }

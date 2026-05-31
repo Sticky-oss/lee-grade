@@ -17,12 +17,14 @@ checks:
   - id: selinux-enforcing
     description: SELinux is in enforcing mode
     hint: 'setenforce 1 and set SELINUX=enforcing in /etc/selinux/config'
+    why: "setenforce 1 changes the LIVE mode only; without SELINUX=enforcing in /etc/selinux/config it reverts on the next reboot."
     type: selinux
     mode: enforcing
 
   - id: web-context
     description: /srv/web is labeled httpd_sys_content_t
     hint: "semanage fcontext -a -t httpd_sys_content_t '/srv/web(/.*)?' && restorecon -R /srv/web"
+    why: "SELinux grants access by a file's TYPE label, not just unix perms. semanage fcontext records the rule (persistent); restorecon applies it. chcon alone is wiped by a relabel."
     type: selinux
     path: /srv/web
     setype: httpd_sys_content_t
@@ -30,6 +32,7 @@ checks:
   - id: httpd-network-boolean
     description: the httpd_can_network_connect boolean is on
     hint: 'setsebool -P httpd_can_network_connect on'
+    why: "Booleans toggle policy at runtime; the -P flag writes it to disk so it survives a reboot. Without -P it resets."
     type: selinux
     boolean: httpd_can_network_connect
     state: "on"

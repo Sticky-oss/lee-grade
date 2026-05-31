@@ -139,16 +139,19 @@ cmd_reset(){ local t; for t in "${RHCSA[@]}" "${RHCE[@]}" "${CYSA[@]}"; do do_cl
 cmd_guided(){
   do_setup "$1"
   cmd_brief "$1"
-  printf '\n%s░ CALYX guided drill ░%s  Run each command, then press Enter to advance.\n\n' "$M" "$R"
+  printf '\n%s░ CALYX guided drill ░%s  I teach each objective — try it yourself, then reveal the command.\n\n' "$M" "$R"
   local steps total n=0
   steps=$("$BIN" --task "$(taskfile "$1")" --steps)
   total=$(printf '%s\n' "$steps" | wc -l)
-  while IFS=$'\t' read -r desc hint; do
+  while IFS=$'\t' read -r desc why hint; do
     [ -z "$desc" ] && continue
     n=$((n + 1))
     printf '  %sSTEP %d/%d%s  %s\n' "$Y" "$n" "$total" "$R" "$desc"
-    [ -n "$hint" ] && printf '     %srun:%s  %s\n' "$D" "$R" "$hint"
-    read -rp "     [Enter] when done... " _ </dev/tty || true
+    [ -n "$why" ] && printf '     %swhy:%s  %s\n' "$C" "$R" "$why"
+    read -rp "     ...attempt it, then [Enter] to reveal the command... " _ </dev/tty || true
+    [ -n "$hint" ] && printf '     %srun:%s  %s\n' "$G" "$R" "$hint"
+    read -rp "     [Enter] when graded-ready... " _ </dev/tty || true
+    echo
   done <<< "$steps"
   printf '\n%s░ drill complete — CALYX assessing ░%s\n' "$M" "$R"
   cmd_grade "$1"

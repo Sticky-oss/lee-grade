@@ -19,6 +19,7 @@ checks:
   - id: data-mountpoint
     description: /mnt/data is a directory
     hint: 'mkdir -p /mnt/data'
+    why: "A filesystem mounts onto an existing directory; create the mountpoint first."
     type: file
     path: /mnt/data
     kind: directory
@@ -26,6 +27,7 @@ checks:
   - id: data-mounted-xfs
     description: /mnt/data is mounted as xfs
     hint: 'mkfs.xfs the device, then mount it at /mnt/data'
+    why: "mkfs.xfs writes the filesystem and mount attaches it — but a manual mount disappears on reboot."
     type: mount
     mountpoint: /mnt/data
     fstype: xfs
@@ -33,6 +35,7 @@ checks:
   - id: data-in-fstab
     description: /mnt/data is listed in /etc/fstab (persistent)
     hint: 'add a /mnt/data line to /etc/fstab so it mounts on boot'
+    why: "Persistence lives in /etc/fstab; without an entry the mount won't return on boot (the #1 RHCSA trap). Verify with 'mount -a' before trusting it."
     type: file-content
     path: /etc/fstab
     contains: /mnt/data

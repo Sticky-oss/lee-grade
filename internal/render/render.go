@@ -73,7 +73,11 @@ func Human(w io.Writer, tr *check.TaskResult) {
 		if r.Error != "" {
 			fmt.Fprintln(w, c(blue)+"│ "+c(reset)+"    "+c(yellow)+"error: "+clean(r.Error)+c(reset))
 		}
-		if !r.Passed && r.Hint != "" {
+		// Teach the concept (why) on failure rather than handing over the
+		// command; fall back to the hint command for checks not yet annotated.
+		if !r.Passed && r.Why != "" {
+			fmt.Fprintln(w, c(blue)+"│ "+c(reset)+"    "+c(dim)+"why: "+c(reset)+clean(r.Why))
+		} else if !r.Passed && r.Hint != "" {
 			fmt.Fprintln(w, c(blue)+"│ "+c(reset)+"    "+c(dim)+"hint: "+c(reset)+clean(r.Hint))
 		}
 	}

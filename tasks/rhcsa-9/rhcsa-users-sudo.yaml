@@ -17,6 +17,7 @@ checks:
   - id: dbadmins-group
     description: group dbadmins exists with GID 4000
     hint: 'groupadd -g 4000 dbadmins'
+    why: "A group is just a name-to-GID mapping in /etc/group; pinning the GID makes it identical across every host you build."
     type: group
     name: dbadmins
     gid: 4000
@@ -24,6 +25,7 @@ checks:
   - id: dba-user
     description: user dba exists with UID 3001 and shell /bin/bash
     hint: 'useradd -u 3001 -s /bin/bash -G wheel,dbadmins dba'
+    why: "useradd -u fixes the UID and -s the login shell; -G adds supplementary groups at create time so you don't need a second command."
     type: user
     name: dba
     uid: 3001
@@ -32,6 +34,7 @@ checks:
   - id: dba-in-wheel
     description: dba is a member of wheel
     hint: 'usermod -aG wheel dba'
+    why: "wheel is the group RHEL's default sudoers grants admin to. ALWAYS use usermod -aG: drop the -a and you REPLACE the user's entire supplementary list."
     type: user-in-group
     user: dba
     group: wheel
@@ -39,6 +42,7 @@ checks:
   - id: dba-in-dbadmins
     description: dba is a member of dbadmins
     hint: 'usermod -aG dbadmins dba'
+    why: "Same -aG rule; a usermod -G without -a would silently wipe the wheel membership you just added."
     type: user-in-group
     user: dba
     group: dbadmins
@@ -46,6 +50,7 @@ checks:
   - id: dbadmins-sudo
     description: /etc/sudoers.d/dbadmins grants the dbadmins group sudo
     hint: "echo '%dbadmins ALL=(ALL) ALL' > /etc/sudoers.d/dbadmins"
+    why: "sudo reads drop-ins from /etc/sudoers.d; a line beginning with % targets a GROUP, not a user. Keep the file mode 0440 and validate with visudo -c."
     type: file-content
     path: /etc/sudoers.d/dbadmins
     contains: "%dbadmins"
