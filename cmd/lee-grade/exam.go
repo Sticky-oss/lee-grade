@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/sticky-oss/lee-grade/internal/check"
 	"github.com/sticky-oss/lee-grade/internal/exam"
@@ -309,8 +310,8 @@ func printClock(w io.Writer, st exam.State, now time.Time, color bool) {
 // printExamSummary renders the boxed final scorecard.
 func printExamSummary(w io.Writer, st exam.State, score exam.Score, within bool, now time.Time, color bool) {
 	const blue, dim, green, red, yellow = "\x1b[34m", "\x1b[90m", "\x1b[32m", "\x1b[31m", "\x1b[33m"
-	header := fmt.Sprintf("Exam %s · %s", st.ExamID, st.Title)
-	fmt.Fprintln(w, col(color, blue, "┌─ "+header+" "+strings.Repeat("─", max(0, 70-3-len(header)))+"┐"))
+	header := sanitize(fmt.Sprintf("Exam %s · %s", st.ExamID, st.Title))
+	fmt.Fprintln(w, col(color, blue, "┌─ "+header+" "+strings.Repeat("─", max(0, 70-3-utf8.RuneCountInString(header)))+"┐"))
 	for _, ts := range score.Tasks {
 		glyph, code := "✗", red
 		if ts.Total > 0 && ts.Passed == ts.Total {
@@ -318,7 +319,7 @@ func printExamSummary(w io.Writer, st exam.State, score exam.Score, within bool,
 		} else if ts.Passed > 0 {
 			glyph, code = "~", yellow
 		}
-		line := fmt.Sprintf("%s %-44s %d/%d", col(color, code, glyph), truncate(ts.Title, 44), ts.Passed, ts.Total)
+		line := fmt.Sprintf("%s %-44s %d/%d", col(color, code, glyph), truncate(sanitize(ts.Title), 44), ts.Passed, ts.Total)
 		fmt.Fprintln(w, col(color, blue, "│ ")+line)
 	}
 	fmt.Fprintln(w, col(color, blue, "│"))
@@ -363,12 +364,27 @@ func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%dm%02ds", m, s)
 }
 
+// truncate clips a string to n runes (rune-aware so it never splits a
+// multibyte character), appending an ellipsis when it shortens.
 func truncate(s string, n int) string {
-	if len(s) <= n {
+	r := []rune(s)
+	if len(r) <= n {
 		return s
 	}
 	if n <= 1 {
-		return s[:n]
+		return string(r[:n])
 	}
-	return s[:n-1] + "…"
+	return string(r[:n-1]) + "…"
+}
+
+// sanitize strips control characters from strings printed inside the cmd boxes
+// (exam / reboot) so a title/detail captured elsewhere can't break the framing
+// or inject ANSI — the package-main twin of render.clean.
+func sanitize(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return -1
+		}
+		return r
+	}, s)
 }

@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/sticky-oss/lee-grade/internal/check"
 	"github.com/sticky-oss/lee-grade/internal/render"
@@ -313,8 +314,8 @@ func printRebootReport(w io.Writer, rep rebootReport, color bool) {
 		rep.StartedAt.Format(time.RFC3339), rep.FinishedAt.Format(time.RFC3339))
 
 	for _, td := range rep.Tasks {
-		header := fmt.Sprintf("Task %s · %s", td.TaskID, td.Title)
-		fmt.Fprintln(w, col(color, blue, "┌─ "+header+" "+strings.Repeat("─", max(0, 70-3-len(header)))+"┐"))
+		header := sanitize(fmt.Sprintf("Task %s · %s", td.TaskID, td.Title))
+		fmt.Fprintln(w, col(color, blue, "┌─ "+header+" "+strings.Repeat("─", max(0, 70-3-utf8.RuneCountInString(header)))+"┐"))
 		taskReg := 0
 		for _, cd := range td.Checks {
 			var glyph, label, code string
@@ -331,9 +332,9 @@ func printRebootReport(w io.Writer, rep rebootReport, color bool) {
 			default:
 				glyph, label, code = "?", "not evaluated after reboot", yellow
 			}
-			fmt.Fprintln(w, col(color, blue, "│ ")+col(color, code, glyph)+" "+cd.Description+"  "+col(color, dim, "["+label+"]"))
+			fmt.Fprintln(w, col(color, blue, "│ ")+col(color, code, glyph)+" "+sanitize(cd.Description)+"  "+col(color, dim, "["+label+"]"))
 			if cd.Status == statusRegressed && cd.PostDetail != "" {
-				fmt.Fprintln(w, col(color, blue, "│ ")+"    "+col(color, dim, "post-reboot: "+cd.PostDetail))
+				fmt.Fprintln(w, col(color, blue, "│ ")+"    "+col(color, dim, "post-reboot: "+sanitize(cd.PostDetail)))
 			}
 		}
 		fmt.Fprintln(w, col(color, blue, "│"))

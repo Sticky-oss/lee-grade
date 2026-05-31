@@ -67,10 +67,15 @@ for n in node1 node2; do
     echo "multinode-setup: $n has no IP on the leenet network — aborting (check: sudo podman logs $n)" >&2
     exit 1
   fi
+  ready=0
   for i in $(seq 1 30); do
-    if ssh -n -i "$MN/ansible_node" -o StrictHostKeyChecking=no -o ConnectTimeout=2 -o BatchMode=yes "ansible@$ip" true 2>/dev/null; then break; fi
+    if ssh -n -i "$MN/ansible_node" -o StrictHostKeyChecking=no -o ConnectTimeout=2 -o BatchMode=yes "ansible@$ip" true 2>/dev/null; then ready=1; break; fi
     sleep 1
   done
+  if [ "$ready" -ne 1 ]; then
+    echo "multinode-setup: $n sshd never accepted a key login within 30s — aborting (check: sudo podman logs $n)" >&2
+    exit 1
+  fi
   echo "$n ansible_host=$ip" >> "$MN/inventory_hosts"
 done
 

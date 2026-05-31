@@ -81,7 +81,7 @@ t_tuned_cleanup(){ systemctl disable --now tuned >/dev/null 2>&1; dnf remove -y 
 t_tuned_solve(){ dnf install -y tuned >/dev/null 2>&1; systemctl enable --now tuned >/dev/null 2>&1; tuned-adm profile virtual-guest 2>/dev/null; }
 
 t_swap_cleanup(){ swapoff /swapfile 2>/dev/null; sed -i '\#^/swapfile[[:space:]]#d' /etc/fstab; rm -f /swapfile; true; }
-t_swap_solve(){ [ -f /swapfile ] || dd if=/dev/zero of=/swapfile bs=1M count=256 status=none; chmod 0600 /swapfile; swapon --show=NAME --noheadings | grep -q /swapfile || { mkswap /swapfile >/dev/null 2>&1; swapon /swapfile 2>/dev/null; }; grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap defaults 0 0' >>/etc/fstab; }
+t_swap_solve(){ [ -f /swapfile ] || dd if=/dev/zero of=/swapfile bs=1M count=256 status=none; chmod 0600 /swapfile; swapon --show=NAME --noheadings | grep -q /swapfile || { mkswap /swapfile >/dev/null 2>&1; swapon /swapfile 2>/dev/null; }; grep -qE '^/swapfile[[:space:]]' /etc/fstab || echo '/swapfile none swap defaults 0 0' >>/etc/fstab; }
 
 t_journald_cleanup(){ restore /etc/systemd/journald.conf; rm -rf /var/log/journal; systemctl restart systemd-journald >/dev/null 2>&1; true; }
 t_journald_solve(){ snapshot /etc/systemd/journald.conf; mkdir -p /var/log/journal; if grep -q '^#\?Storage=' /etc/systemd/journald.conf; then sed -i 's/^#\?Storage=.*/Storage=persistent/' /etc/systemd/journald.conf; else sed -i '/^\[Journal\]/a Storage=persistent' /etc/systemd/journald.conf; fi; systemctl restart systemd-journald >/dev/null 2>&1; }
