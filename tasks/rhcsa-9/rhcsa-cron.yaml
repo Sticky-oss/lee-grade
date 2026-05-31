@@ -7,8 +7,9 @@ domain: scheduled-tasks
 track: rhcsa-9
 time_minutes: 10
 description: |
-  - Install a script /usr/local/bin/backup.sh (executable, mode 0755).
-  - Schedule it in user dba's crontab to run every day at 03:00.
+  Set this node to phone home to cold storage on a schedule, unattended:
+    - an executable script /usr/local/bin/backup.sh (mode 0755)
+    - scheduled in dba's crontab to run every day at 03:00
 
 checks:
   - id: backup-script

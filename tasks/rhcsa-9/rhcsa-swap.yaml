@@ -7,8 +7,10 @@ domain: storage
 track: rhcsa-9
 time_minutes: 15
 description: |
-  - Provision a 256 MiB swap file at /swapfile (mode 0600) and activate it.
-  - Make it persistent in /etc/fstab.
+  This node will run memory-hungry payloads mid-op. Give it overflow memory so
+  it never stalls under load:
+    - a 256 MiB swap file at /swapfile (mode 0600), activated
+    - made persistent in /etc/fstab
 
 checks:
   - id: swapfile-active

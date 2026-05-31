@@ -7,9 +7,10 @@ domain: permissions
 track: rhcsa-9
 time_minutes: 10
 description: |
-  - Create /srv/reports.
-  - Grant user "dba" an rwx ACL on /srv/reports (in addition to the normal
-    owner/group permissions).
+  Grant a single operative surgical access to the reports cache, beyond the
+  standard owner/group permissions:
+    - create /srv/reports
+    - give user "dba" an rwx ACL on /srv/reports
 
 checks:
   - id: reports-dir

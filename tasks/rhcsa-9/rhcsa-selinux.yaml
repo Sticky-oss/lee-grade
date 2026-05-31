@@ -7,9 +7,11 @@ domain: selinux
 track: rhcsa-9
 time_minutes: 15
 description: |
-  - Ensure SELinux is in enforcing mode.
-  - Create /srv/web and give it the httpd_sys_content_t file context (persistently).
-  - Turn the httpd_can_network_connect boolean on (persistently).
+  Harden this node's mandatory-access perimeter — CALYX does not field a
+  permissive host:
+    - SELinux in enforcing mode
+    - /srv/web carrying the httpd_sys_content_t context (persistently)
+    - the httpd_can_network_connect boolean turned on (persistently)
 
 checks:
   - id: selinux-enforcing

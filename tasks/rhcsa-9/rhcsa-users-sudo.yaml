@@ -7,10 +7,11 @@ domain: user-group-management
 track: rhcsa-9
 time_minutes: 15
 description: |
-  - Create group "dbadmins" with GID 4000.
-  - Create user "dba" with UID 3001 and login shell /bin/bash, in the
-    supplementary groups "wheel" and "dbadmins".
-  - Grant the dbadmins group full sudo via a drop-in /etc/sudoers.d/dbadmins.
+  Operative — a new analyst is joining your cell, and the team needs elevated
+  access on this node. Provision it:
+    - a group "dbadmins" (GID 4000)
+    - a user "dba" (UID 3001, shell /bin/bash) in the wheel and dbadmins groups
+    - full sudo for the dbadmins group via a drop-in /etc/sudoers.d/dbadmins
 
 checks:
   - id: dbadmins-group

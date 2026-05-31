@@ -7,8 +7,10 @@ domain: services-firewall
 track: rhcsa-9
 time_minutes: 15
 description: |
-  - Install httpd; enable it at boot and start it now.
-  - Permanently allow the http service through the default firewalld zone.
+  Stand up the cell's public listening post and open the channel through the
+  perimeter:
+    - install httpd; enable it at boot and start it now
+    - permanently allow the http service through the firewall (default zone)
 
 checks:
   - id: httpd-installed

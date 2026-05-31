@@ -9,8 +9,11 @@ domain: storage
 track: rhcsa-9
 time_minutes: 20
 description: |
-  - Provision an xfs filesystem and mount it at /mnt/data.
-  - Make the mount persistent across reboots via /etc/fstab.
+  Provision sealed storage for intercepted payloads — and make sure it
+  survives a cold boot:
+    - an xfs filesystem mounted at /mnt/data
+    - the mount made persistent in /etc/fstab
+  (CALYX stages a spare device for you when this directive deploys)
 
 checks:
   - id: data-mountpoint

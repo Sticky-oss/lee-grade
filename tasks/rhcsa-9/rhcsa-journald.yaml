@@ -7,9 +7,9 @@ domain: logging
 track: rhcsa-9
 time_minutes: 10
 description: |
-  Make the systemd journal survive reboots:
-    - /var/log/journal exists as a directory
-    - journald is configured with Storage=persistent
+  Make this node remember everything across reboots — CALYX loses no evidence:
+    - /var/log/journal present as a directory
+    - journald configured with Storage=persistent
 
 checks:
   - id: journal-dir

@@ -7,8 +7,9 @@ domain: permissions
 track: rhcsa-9
 time_minutes: 10
 description: |
-  Create /srv/teamdata as a group-collaborative directory:
-    - owned by group "dbadmins"
+  Your cell needs a shared dead-drop on this node — a directory every analyst
+  can write to, where new files inherit the team's group automatically:
+    - /srv/teamdata, group-owned by "dbadmins"
     - mode 2770 (setgid set, so new files inherit the group; no access for others)
 
 checks:

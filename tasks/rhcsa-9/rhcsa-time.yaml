@@ -7,8 +7,10 @@ domain: time-service
 track: rhcsa-9
 time_minutes: 10
 description: |
-  - Ensure chronyd (the NTP client) is enabled at boot and running now.
-  - Set the system timezone to America/Toronto.
+  A field node with a drifting clock is a liability — timestamps must hold up
+  in evidence. Synchronise and localise:
+    - chronyd (the NTP client) enabled at boot and running now
+    - the system timezone set to America/Toronto
 
 checks:
   - id: chronyd-running

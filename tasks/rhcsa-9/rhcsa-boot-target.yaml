@@ -7,7 +7,9 @@ domain: operate-systems
 track: rhcsa-9
 time_minutes: 5
 description: |
-  Set the system's default boot target to multi-user.target (text mode, no GUI).
+  Strip this node to a lean, headless operational profile — no wasted cycles on
+  a desktop in the field:
+    - set the default boot target to multi-user.target (text mode, no GUI)
 
 checks:
   - id: default-target

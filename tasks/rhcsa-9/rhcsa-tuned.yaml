@@ -7,8 +7,9 @@ domain: operate-systems
 track: rhcsa-9
 time_minutes: 10
 description: |
-  - Install tuned and ensure the service runs.
-  - Activate the "virtual-guest" tuning profile (appropriate for a VM).
+  Tune this node's reflexes for virtualized field deployment:
+    - install tuned and ensure the service runs
+    - activate the "virtual-guest" tuning profile
 
 checks:
   - id: tuned-running
