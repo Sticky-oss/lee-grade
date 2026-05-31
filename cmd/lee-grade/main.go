@@ -44,6 +44,7 @@ func main() {
 	noColor := flag.Bool("no-color", false, "disable ANSI colour even when output is a TTY")
 	listTypes := flag.Bool("list-check-types", false, "print the alphabet of registered check types and exit")
 	showVersion := flag.Bool("version", false, "print version + commit and exit")
+	describe := flag.Bool("describe", false, "print the task brief (scenario + graded objectives) and exit; no grading")
 	hostsPath := flag.String("hosts", "", "path to a hosts YAML mapping names to SSH targets; lets checks with a 'host:' grade managed nodes remotely")
 	rebootTest := flag.Bool("reboot-test", false, "grade, reboot, then re-grade to prove the config survives a reboot (root; needs --task/--tasks-dir)")
 	rebootResume := flag.Bool("reboot-test-resume", false, "internal: post-boot phase of --reboot-test, invoked by the generated systemd unit")
@@ -99,6 +100,18 @@ func main() {
 	tasks, code := loadTasks(*taskPath, *tasksDir)
 	if code != 0 {
 		os.Exit(code)
+	}
+
+	// --describe short-circuits grading: just print each task's brief.
+	if *describe {
+		color := !*noColor && isTerminal(os.Stdout)
+		for i, t := range tasks {
+			if i > 0 {
+				fmt.Println()
+			}
+			describeBrief(os.Stdout, t, color)
+		}
+		return
 	}
 
 	// Run each task; track aggregate pass/fail so exit code reflects the

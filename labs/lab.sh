@@ -80,7 +80,8 @@ do_setup(){ local f; f=$(fn "$1" setup); if declare -F "$f" >/dev/null; then "$f
 do_solve(){ local f; f=$(fn "$1" solve); declare -F "$f" >/dev/null && "$f"; true; }
 title_of(){ grep -m1 '^title:' "$(taskfile "$1")" | sed 's/^title:[[:space:]]*//'; }
 
-cmd_start(){ do_setup "$1"; printf '%s▸ lab started:%s %s%s%s\n' "$G" "$R" "$B" "$(title_of "$1")" "$R"; printf '  reset to a clean slate. Do the work, then:  %slab grade %s%s\n' "$B" "$1" "$R"; }
+cmd_start(){ do_setup "$1"; printf '%s▸ lab started%s — the host was reset to a clean slate for this task.\n\n' "$G" "$R"; "$BIN" --task "$(taskfile "$1")" --describe; printf '\n  %sWork the objectives, then:%s  %slab grade %s%s   (stuck? %slab solve %s%s)\n' "$D" "$R" "$B" "$1" "$R" "$B" "$1" "$R"; }
+cmd_brief(){ "$BIN" --task "$(taskfile "$1")" --describe; }
 cmd_grade(){ "$BIN" --task "$(taskfile "$1")"; }
 cmd_solve(){ do_solve "$1"; printf '%sapplied the worked solution for %s. Grade with:  lab grade %s%s\n' "$Y" "$1" "$1" "$R"; }
 cmd_finish(){ do_cleanup "$1"; printf '%s▸ lab %s reset to baseline.%s\n' "$G" "$1" "$R"; }
@@ -95,11 +96,12 @@ verb=${1:-list}
 case "$verb" in
   list|"") cmd_list ;;
   reset|reset-all) cmd_reset ;;
-  start|grade|solve|finish)
+  start|grade|solve|finish|brief)
     t=${2:-}; [ -n "$t" ] || die "usage: lab $verb <task>  (see: lab list)"
     t=${t#rhcsa-}; known "$t" || die "unknown task '$t' (see: lab list)"
     case "$verb" in
       start)  cmd_start  "$t" ;;
+      brief)  cmd_brief  "$t" ;;
       grade)  cmd_grade  "$t" ;;
       solve)  cmd_solve  "$t" ;;
       finish) cmd_finish "$t" ;;
