@@ -1,0 +1,51 @@
+# RHCSA (EX200): run a container as a systemd-managed service via Quadlet.
+# Worked solution: `lab solve podman`.
+schema_version: 1
+id: rhcsa-podman
+title: Container as a systemd service
+domain: containers
+track: rhcsa-9
+time_minutes: 20
+description: |
+  CALYX wants a container that returns on its own after a reboot, operative —
+  not one you start by hand. Use a Quadlet so systemd owns its lifecycle:
+    - a Quadlet unit /etc/containers/systemd/leeweb.container that runs the
+      local image quay.io/rockylinux/rockylinux:9, named "leeweb"
+    - after `systemctl daemon-reload`, the generated leeweb.service is active
+    - `podman ps` shows the leeweb container running
+  Tip: [Container] needs Image= and ContainerName=leeweb, plus an Exec= that
+  keeps the process alive (e.g. sleep infinity) — the stock image command exits
+  at once and the service would flap.
+
+checks:
+  - id: podman-present
+    description: podman is installed
+    hint: 'dnf install -y podman'
+    why: "Podman is the daemonless container engine RHEL ships instead of Docker; it wires into systemd through the Quadlet generator."
+    type: command
+    run: "podman --version"
+    contains: podman
+
+  - id: quadlet-unit
+    description: the Quadlet unit /etc/containers/systemd/leeweb.container exists
+    hint: 'write a [Container] section with Image= and ContainerName=leeweb into /etc/containers/systemd/leeweb.container'
+    why: "Files in /etc/containers/systemd are read by a systemd generator at daemon-reload, which turns each .container into a real .service — the modern replacement for the deprecated `podman generate systemd`."
+    type: file
+    path: /etc/containers/systemd/leeweb.container
+    kind: file
+
+  - id: leeweb-service-active
+    description: the generated leeweb.service is active
+    hint: 'systemctl daemon-reload; systemctl start leeweb.service'
+    why: "The generated unit is transient, not enabled the usual way — daemon-reload creates it from the .container, then systemctl start runs it; an [Install] WantedBy line gives it boot persistence."
+    type: service-state
+    unit: leeweb.service
+    active: true
+
+  - id: leeweb-running
+    description: the leeweb container is running
+    hint: 'after systemctl start, confirm with: podman ps'
+    why: "A green service with no container means the Exec died on start; podman ps confirms the container itself is actually up."
+    type: command
+    run: "podman ps --format '{{.Names}}'"
+    contains: leeweb

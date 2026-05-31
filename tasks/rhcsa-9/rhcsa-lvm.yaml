@@ -1,0 +1,50 @@
+# RHCSA (EX200): build and mount a logical volume on a spare disk.
+# `lab start lvm` attaches a 512 MB loopback disk; find it with
+#   losetup -j /var/lib/lee-lvm.img
+# Worked solution: `lab solve lvm`.
+schema_version: 1
+id: rhcsa-lvm
+title: Logical volume on a spare disk
+domain: storage
+track: rhcsa-9
+time_minutes: 20
+description: |
+  CALYX needs an expandable data volume, operative. A spare 512 MB disk is
+  attached as a loopback device — find it with `losetup -j /var/lib/lee-lvm.img`.
+  Build a full LVM stack on that disk and mount it so it survives a reboot:
+    - a volume group "labvg" on the disk (pvcreate, then vgcreate)
+    - a 200 MB logical volume "labvol" carved from labvg
+    - an XFS filesystem on labvol, mounted at /mnt/lvm
+    - an /etc/fstab entry so the mount returns on boot
+
+checks:
+  - id: vg-exists
+    description: volume group labvg exists
+    hint: 'pvcreate <disk>; vgcreate labvg <disk>'
+    why: "A volume group pools one or more physical volumes into a single space you carve logical volumes from; vgcreate needs the disk initialised as a PV first (pvcreate)."
+    type: command
+    run: "vgs --noheadings -o vg_name labvg"
+    contains: labvg
+
+  - id: lv-exists
+    description: logical volume labvol exists in labvg
+    hint: 'lvcreate -n labvol -L 200M labvg'
+    why: "A logical volume is the flexible 'partition' carved from the VG's pool; unlike a real partition it can be grown later with lvextend without repartitioning the disk."
+    type: command
+    run: "lvs --noheadings -o lv_name,vg_name labvg/labvol"
+    contains: labvol
+
+  - id: lvm-mounted
+    description: an XFS filesystem on labvol is mounted at /mnt/lvm
+    hint: 'mkfs.xfs /dev/labvg/labvol; mkdir -p /mnt/lvm; mount /dev/labvg/labvol /mnt/lvm'
+    why: "A fresh LV has no filesystem — mkfs writes one, then mount makes it usable. The device path is /dev/<vg>/<lv> (a symlink into /dev/mapper)."
+    type: mount
+    mountpoint: /mnt/lvm
+    fstype: xfs
+
+  - id: lvm-fstab
+    description: the /mnt/lvm mount is restored on boot (fstab entry)
+    hint: 'add to /etc/fstab: /dev/labvg/labvol /mnt/lvm xfs defaults 0 0'
+    why: "A live mount is forgotten on reboot; only an /etc/fstab line makes it permanent. Verified with findmnt --fstab, which reads the file — not the live mount table — so a hand mount alone won't pass."
+    type: command
+    run: "findmnt --fstab /mnt/lvm"

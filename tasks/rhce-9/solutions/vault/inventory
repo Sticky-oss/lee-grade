@@ -1,0 +1,3 @@
+# Single managed node: the box itself, via a local connection.
+[managed]
+localhost ansible_connection=local

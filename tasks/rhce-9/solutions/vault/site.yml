@@ -1,0 +1,25 @@
+---
+# Worked solution for ansible-vault-demo.
+# vars_files loads the encrypted secret.yml; ansible.cfg's vault_password_file
+# decrypts it without a prompt. copy with content: keeps the run idempotent.
+- name: Consume a Vault-encrypted secret
+  hosts: managed
+  become: true
+  vars_files:
+    - secret.yml
+  tasks:
+    - name: Ensure the demo directory exists
+      ansible.builtin.file:
+        path: /etc/lee-demo
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Write the decrypted token to a file
+      ansible.builtin.copy:
+        content: "token = {{ vault_demo_token }}\n"
+        dest: /etc/lee-demo/vault.txt
+        owner: root
+        group: root
+        mode: "0600"

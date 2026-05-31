@@ -1,0 +1,51 @@
+# RHCE (EX294): protect a secret with Ansible Vault and consume it in a play.
+#
+# RHCE requires you to encrypt sensitive data and use it without ever writing
+# plaintext to disk. The work dir (/home/lee/rhce/vault) is seeded on `lab start`
+# with inventory, ansible.cfg (which points vault_password_file at .vault_pass),
+# and the .vault_pass file itself. You author site.yml + an encrypted secret.yml.
+#
+# Worked solution: tasks/rhce-9/solutions/vault/ (run on the Rocky 9 VM).
+schema_version: 1
+id: ansible-vault-demo
+title: Ansible — secret protected with Vault
+domain: ansible-vault
+track: rhce-9
+time_minutes: 15
+description: |
+  Secrets never live in plaintext in your repo, operative. From
+  /home/lee/rhce/vault, ship an idempotent site.yml that consumes a
+  Vault-encrypted variable:
+    - create a Vault-encrypted file secret.yml that defines
+        vault_demo_token: "CALYX-7731"
+      (encrypt with the provided password file:
+        ansible-vault create secret.yml --vault-password-file .vault_pass)
+    - in site.yml, load it with vars_files and write the token to
+      /etc/lee-demo/vault.txt as a line:  token = CALYX-7731
+  The grader decrypts via ansible.cfg's vault_password_file, so no prompt is
+  needed. Re-running the playbook must report zero changes.
+
+checks:
+  - id: vault-playbook-idempotent
+    description: site.yml runs clean and is idempotent (a second run changes nothing)
+    hint: 'load the secret with vars_files: [secret.yml]; use ansible.builtin.copy with content: so a re-run is changed=0'
+    type: ansible-playbook
+    dir: /home/lee/rhce/vault
+    playbook: site.yml
+    inventory: inventory
+
+  - id: secret-is-encrypted
+    description: secret.yml is a Vault-encrypted file (not plaintext)
+    hint: 'encrypt it: ansible-vault encrypt secret.yml --vault-password-file .vault_pass'
+    why: "A Vault file starts with the header line $ANSIBLE_VAULT;1.1;AES256 — that header is how Ansible knows to decrypt it. If the file is plaintext you have leaked the secret, even though the play would still run."
+    type: command
+    run: "head -1 /home/lee/rhce/vault/secret.yml"
+    matches: '^\$ANSIBLE_VAULT'
+
+  - id: vault-token-rendered
+    description: /etc/lee-demo/vault.txt carries the decrypted token
+    hint: 'render "token = {{ vault_demo_token }}" into /etc/lee-demo/vault.txt'
+    why: "The token only reaches the file if the play actually decrypted the vault and resolved the variable — proof the secret flowed end to end without ever being stored in clear text."
+    type: file-content
+    path: /etc/lee-demo/vault.txt
+    contains: "token = CALYX-7731"

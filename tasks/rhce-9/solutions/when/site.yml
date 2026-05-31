@@ -1,0 +1,33 @@
+---
+# Worked solution for ansible-when-demo.
+# Uses only ansible-core builtin modules. copy with content: is declarative, so
+# a second run reports changed=0; the `when` lines gate each task on a host fact.
+- name: Conditional tasks driven by host facts
+  hosts: managed
+  become: true
+  tasks:
+    - name: Ensure the demo directory exists
+      ansible.builtin.file:
+        path: /etc/lee-demo
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: RedHat marker — only on the RedHat OS family
+      ansible.builtin.copy:
+        content: "family={{ ansible_facts['os_family'] }}\n"
+        dest: /etc/lee-demo/redhat.txt
+        owner: root
+        group: root
+        mode: "0644"
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Debian marker — only on the Debian OS family (skipped on Rocky)
+      ansible.builtin.copy:
+        content: "family=Debian\n"
+        dest: /etc/lee-demo/debian.txt
+        owner: root
+        group: root
+        mode: "0644"
+      when: ansible_facts['os_family'] == "Debian"

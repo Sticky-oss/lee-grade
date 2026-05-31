@@ -25,7 +25,7 @@ if [ "$(id -u)" -ne 0 ]; then exec sudo "$0" "$@"; fi
 
 # ── task registry: name -> track, file, (rhce) workdir, (rhce) kit ──
 declare -A TRACK FILE WORK KIT
-RHCSA=(users-sudo shared-dir cron web-firewall selinux storage boot-target time tuned swap journald acl)
+RHCSA=(users-sudo shared-dir cron web-firewall selinux storage boot-target time tuned swap journald acl lvm podman)
 RHCE=(template handler vars role web)
 CYSA=(auditd ssh-hardening pwquality sysctl rogue-account suid)
 for t in "${RHCSA[@]}"; do TRACK[$t]=rhcsa; FILE[$t]="$RHCSA_DIR/rhcsa-$t.yaml"; done
@@ -36,6 +36,8 @@ reg_rhce handler  ansible-handler-demo.yaml        /home/lee/rhce/handler  /home
 reg_rhce vars     ansible-vars-loop-demo.yaml      /home/lee/rhce/vars     /home/lee/kit/vars
 reg_rhce role     ansible-role-demo.yaml           /home/lee/rhce/role     /home/lee/kit/role
 reg_rhce web      ansible-web-idempotent-demo.yaml /home/lee/ansible       /home/lee/kit/web
+reg_rhce vault    ansible-vault-demo.yaml          /home/lee/rhce/vault    /home/lee/kit/vault
+reg_rhce when     ansible-when-demo.yaml           /home/lee/rhce/when      /home/lee/kit/when
 
 known(){ [ -n "${TRACK[$1]:-}" ]; }
 taskfile(){ echo "${FILE[$1]}"; }
@@ -90,6 +92,30 @@ t_acl_cleanup(){ rm -rf /srv/reports; userdel -r dba 2>/dev/null; true; }
 t_acl_setup(){ t_acl_cleanup; id dba >/dev/null 2>&1 || useradd -u 3001 -s /bin/bash dba; true; }
 t_acl_solve(){ mkdir -p /srv/reports; setfacl -m u:dba:rwx /srv/reports 2>/dev/null; }
 
+# lvm: a 512MB loopback file stands in for a spare disk. cleanup tears the whole
+# stack down (mount -> fstab -> LV -> VG -> PV -> loop -> file) in dependency order.
+t_lvm_loopdev(){ losetup -j /var/lib/lee-lvm.img 2>/dev/null | head -1 | cut -d: -f1; }
+t_lvm_cleanup(){ umount /mnt/lvm 2>/dev/null; sed -i '\#[[:space:]]/mnt/lvm[[:space:]]#d' /etc/fstab; lvremove -fy labvg/labvol >/dev/null 2>&1; vgremove -fy labvg >/dev/null 2>&1; local d; d=$(t_lvm_loopdev); [ -n "$d" ] && { pvremove -fy "$d" >/dev/null 2>&1; losetup -d "$d" 2>/dev/null; }; rm -f /var/lib/lee-lvm.img; rm -rf /mnt/lvm; true; }
+t_lvm_setup(){ t_lvm_cleanup; command -v pvcreate >/dev/null 2>&1 || dnf install -y lvm2 >/dev/null 2>&1; dd if=/dev/zero of=/var/lib/lee-lvm.img bs=1M count=512 status=none; losetup -f /var/lib/lee-lvm.img; true; }
+t_lvm_solve(){ local d; d=$(t_lvm_loopdev); [ -n "$d" ] || { losetup -f /var/lib/lee-lvm.img; d=$(t_lvm_loopdev); }; pvs "$d" >/dev/null 2>&1 || pvcreate -y "$d" >/dev/null 2>&1; vgs labvg >/dev/null 2>&1 || vgcreate labvg "$d" >/dev/null 2>&1; lvs labvg/labvol >/dev/null 2>&1 || lvcreate -y -n labvol -L 200M labvg >/dev/null 2>&1; blkid /dev/labvg/labvol >/dev/null 2>&1 || mkfs.xfs -q /dev/labvg/labvol >/dev/null 2>&1; mkdir -p /mnt/lvm; mountpoint -q /mnt/lvm || mount /dev/labvg/labvol /mnt/lvm; grep -qE '[[:space:]]/mnt/lvm[[:space:]]' /etc/fstab || echo '/dev/labvg/labvol /mnt/lvm xfs defaults 0 0' >>/etc/fstab; }
+
+# podman: a Quadlet unit runs the local rockylinux image as a systemd service.
+t_podman_cleanup(){ systemctl stop leeweb.service >/dev/null 2>&1; rm -f /etc/containers/systemd/leeweb.container; systemctl daemon-reload >/dev/null 2>&1; podman rm -f leeweb >/dev/null 2>&1; true; }
+t_podman_setup(){ t_podman_cleanup; command -v podman >/dev/null 2>&1 || dnf install -y podman >/dev/null 2>&1; true; }
+t_podman_solve(){ mkdir -p /etc/containers/systemd; cat >/etc/containers/systemd/leeweb.container <<'QUADLET'
+[Unit]
+Description=LEE demo container
+
+[Container]
+Image=quay.io/rockylinux/rockylinux:9
+ContainerName=leeweb
+Exec=sleep infinity
+
+[Install]
+WantedBy=multi-user.target
+QUADLET
+systemctl daemon-reload; systemctl start leeweb.service; }
+
 # ════════════════════════ CySA+ per-task hooks ════════════════════════
 t_auditd_cleanup(){ rm -f /etc/audit/rules.d/lee.rules; augenrules --load >/dev/null 2>&1; true; }
 t_auditd_solve(){ echo '-w /etc/sudoers -p wa -k sudoers' > /etc/audit/rules.d/lee.rules; augenrules --load >/dev/null 2>&1; }
@@ -116,12 +142,12 @@ t_suid_solve(){ chmod 0755 /usr/local/bin/suspect; }
 # dir (inventory + ansible.cfg are provided); grade runs it. solve drops the
 # worked playbook; cleanup clears the work dir and resets the host state.
 rhce_reset_state(){ case "$1" in
-  template|vars) rm -rf /etc/lee-demo ;;
+  template|vars|vault|when) rm -rf /etc/lee-demo ;;
   handler)       systemctl disable --now httpd >/dev/null 2>&1; dnf remove -y httpd >/dev/null 2>&1; rm -rf /etc/httpd ;;
   role|web)      systemctl disable --now httpd >/dev/null 2>&1; dnf remove -y httpd >/dev/null 2>&1; rm -rf /var/www ;;
 esac; }
 rhce_cleanup(){ local w=${WORK[$1]}; rm -rf "$w"; mkdir -p "$w"; rhce_reset_state "$1"; }
-rhce_setup(){ local w=${WORK[$1]} k=${KIT[$1]}; rm -rf "$w"; mkdir -p "$w"; rhce_reset_state "$1"; [ -f "$k/inventory" ] && cp "$k/inventory" "$w/"; [ -f "$k/ansible.cfg" ] && cp "$k/ansible.cfg" "$w/"; chown -R lee:lee "$w" 2>/dev/null; true; }
+rhce_setup(){ local w=${WORK[$1]} k=${KIT[$1]}; rm -rf "$w"; mkdir -p "$w"; rhce_reset_state "$1"; [ -f "$k/inventory" ] && cp "$k/inventory" "$w/"; [ -f "$k/ansible.cfg" ] && cp "$k/ansible.cfg" "$w/"; [ -f "$k/.vault_pass" ] && cp "$k/.vault_pass" "$w/"; chown -R lee:lee "$w" 2>/dev/null; true; }
 rhce_solve(){ local w=${WORK[$1]} k=${KIT[$1]}; cp -r "$k"/. "$w"/; chown -R lee:lee "$w" 2>/dev/null; true; }
 
 # ════════════════════════ verb dispatch ════════════════════════

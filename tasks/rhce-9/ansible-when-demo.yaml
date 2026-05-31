@@ -1,0 +1,48 @@
+# RHCE (EX294): gate tasks with a `when` conditional on a host fact.
+#
+# RHCE expects conditional execution: a task runs only when a condition holds.
+# This task proves the conditional really gates execution — one task fires (its
+# condition is true on Rocky) and one is skipped (its condition is false), so a
+# file that must NOT exist is the real test, not just the one that must.
+#
+# Worked solution: tasks/rhce-9/solutions/when/ (run on the Rocky 9 VM).
+schema_version: 1
+id: ansible-when-demo
+title: Ansible — conditional tasks with when
+domain: ansible-playbooks
+track: rhce-9
+time_minutes: 15
+description: |
+  Make the play adapt to the host, operative. From /home/lee/rhce/when, write an
+  idempotent site.yml that uses fact-based `when` conditionals:
+    - write /etc/lee-demo/redhat.txt (a line "family=RedHat") ONLY when
+        ansible_facts['os_family'] == "RedHat"
+    - attempt to write /etc/lee-demo/debian.txt but gate it with
+        when: ansible_facts['os_family'] == "Debian"
+  On this Rocky host the first runs and the second is skipped — so debian.txt
+  must NOT appear. Re-running the playbook must report zero changes.
+
+checks:
+  - id: when-playbook-idempotent
+    description: site.yml runs clean and is idempotent (a second run changes nothing)
+    hint: 'add when: ansible_facts[''os_family''] == "RedHat" to the task; use copy with content: for idempotency'
+    type: ansible-playbook
+    dir: /home/lee/rhce/when
+    playbook: site.yml
+    inventory: inventory
+
+  - id: redhat-marker-present
+    description: /etc/lee-demo/redhat.txt was written (its when was true)
+    hint: 'the RedHat task should create /etc/lee-demo/redhat.txt with "family=RedHat"'
+    why: "On a Rocky host os_family is RedHat, so this task's condition is true and it runs — the positive half of proving the conditional works."
+    type: file-content
+    path: /etc/lee-demo/redhat.txt
+    contains: "family=RedHat"
+
+  - id: debian-marker-absent
+    description: /etc/lee-demo/debian.txt was NOT written (its when was false)
+    hint: 'gate the Debian task with when: ansible_facts[''os_family''] == "Debian" so it is skipped here'
+    why: "This is the real test of `when`: a false condition must SKIP the task, leaving no file. If debian.txt exists, the conditional didn't actually gate execution."
+    type: file
+    path: /etc/lee-demo/debian.txt
+    exists: false
