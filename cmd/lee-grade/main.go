@@ -45,6 +45,7 @@ func main() {
 	listTypes := flag.Bool("list-check-types", false, "print the alphabet of registered check types and exit")
 	showVersion := flag.Bool("version", false, "print version + commit and exit")
 	describe := flag.Bool("describe", false, "print the task brief (scenario + graded objectives) and exit; no grading")
+	steps := flag.Bool("steps", false, "output each objective + its hint as TSV, one per line (used by lab guided)")
 	hostsPath := flag.String("hosts", "", "path to a hosts YAML mapping names to SSH targets; lets checks with a 'host:' grade managed nodes remotely")
 	rebootTest := flag.Bool("reboot-test", false, "grade, reboot, then re-grade to prove the config survives a reboot (root; needs --task/--tasks-dir)")
 	rebootResume := flag.Bool("reboot-test-resume", false, "internal: post-boot phase of --reboot-test, invoked by the generated systemd unit")
@@ -110,6 +111,16 @@ func main() {
 				fmt.Println()
 			}
 			describeBrief(os.Stdout, t, color)
+		}
+		return
+	}
+
+	// --steps emits the objectives + hints as TSV for the guided stepper.
+	if *steps {
+		for _, t := range tasks {
+			for i := range t.Checks {
+				fmt.Printf("%s\t%s\n", t.Checks[i].Description, t.Checks[i].Hint)
+			}
 		}
 		return
 	}
