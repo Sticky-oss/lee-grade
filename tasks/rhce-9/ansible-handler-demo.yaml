@@ -19,17 +19,16 @@ domain: ansible-playbooks
 track: rhce-9
 time_minutes: 15
 description: |
-  Write an Ansible playbook site.yml (run from /home/lee/rhce/handler) that
-  configures httpd and uses a handler to restart it only when its config
-  changes, and is fully idempotent:
-    - installs the httpd package
-    - enables httpd and starts it now
-    - deploys a drop-in config /etc/httpd/conf.d/lee.conf containing the marker
-      "# LEE demo" and a benign directive (e.g. ServerTokens Prod)
-    - the config task uses `notify` to trigger a handler named "restart httpd"
-      that restarts httpd ONLY when the config changes
-  A second run of the playbook must report no changes (the handler must not
-  fire, and httpd must not restart).
+  Reaction without waste, operative: restart a service only when its config
+  actually changed. Write an idempotent playbook site.yml (from
+  /home/lee/rhce/handler) that configures httpd via a change-triggered handler:
+    - install the httpd package
+    - enable httpd and start it now
+    - deploy a drop-in /etc/httpd/conf.d/lee.conf with the marker "# LEE demo"
+      and a benign directive (e.g. ServerTokens Prod)
+    - the config task uses `notify` to fire a handler "restart httpd" that
+      restarts httpd ONLY when the config changes
+  A second run must report no changes — the handler stays silent, nothing restarts.
 
 checks:
   - id: handler-playbook-idempotent

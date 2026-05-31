@@ -20,11 +20,12 @@ domain: ansible-playbooks
 track: rhce-9
 time_minutes: 25
 description: |
-  Write web.yml (run from /home/lee/multinode) that stands up a web server on
-  EVERY managed node and is idempotent:
-    - installs the httpd package
-    - enables httpd and starts it now
-    - serves /var/www/html/index.html containing "Welcome from <hostname>"
+  Deploy a listening post to the entire fleet at once, operative. Write an
+  idempotent web.yml (from /home/lee/multinode) that stands up a web server on
+  EVERY managed node:
+    - install the httpd package
+    - enable httpd and start it now
+    - serve /var/www/html/index.html containing "Welcome from <hostname>"
   Unlike the fleet-config task, this one is graded PER NODE: lee-grade reaches
   node1 and node2 over SSH and verifies httpd + the page on each.
 

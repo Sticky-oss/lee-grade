@@ -17,14 +17,13 @@ domain: ansible-playbooks
 track: rhce-9
 time_minutes: 20
 description: |
-  Package a web-server setup as an Ansible role named webdemo and apply it from a
-  top-level site.yml (run from /home/lee/rhce/role). The role must be fully
-  idempotent and:
+  Package your tradecraft for reuse, operative — a role is capability you can
+  deploy anywhere. Package a web-server setup as an Ansible role "webdemo" and
+  apply it from a thin site.yml (from /home/lee/rhce/role), fully idempotent:
     - install the httpd package
     - enable httpd and start it now
-    - deploy /var/www/html/index.html whose content comes from a role variable
-      page_title defined in roles/webdemo/defaults/main.yml (default
-      "LEE practice lab"), so the page contains "LEE practice lab"
+    - deploy /var/www/html/index.html from a role variable page_title defined in
+      roles/webdemo/defaults/main.yml (default "LEE practice lab")
   A second run of site.yml must report no changes.
 
 checks:

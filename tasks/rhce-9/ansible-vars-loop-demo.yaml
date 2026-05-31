@@ -17,17 +17,15 @@ domain: ansible-playbooks
 track: rhce-9
 time_minutes: 15
 description: |
-  Write an Ansible playbook site.yml (run from /home/lee/rhce/vars) that uses a
-  list variable and a loop to provision a set of config files, and is fully
-  idempotent:
-    - ensures the directory /etc/lee-demo exists
-    - defines a list variable (e.g. units:) whose items carry a name and a value
-    - in a SINGLE task, loops over that list with loop: and writes one file per
-      item to /etc/lee-demo/<name>.conf
-  Each file must contain a line "unit = <name>" derived from the loop item plus a
-  shared line "owner = LEE practice lab". The three units are alpha, bravo and
-  charlie, yielding /etc/lee-demo/alpha.conf, bravo.conf and charlie.conf.
-  A second run of the playbook must report no changes.
+  One instruction, many targets — that's the operative's edge. Write an
+  idempotent playbook site.yml (from /home/lee/rhce/vars) that drives a single
+  task with a list variable and a loop:
+    - ensure the directory /etc/lee-demo exists
+    - define a list variable (e.g. units:) whose items carry a name and a value
+    - in ONE task, loop over that list and write one file per item to
+      /etc/lee-demo/<name>.conf
+  Each file carries "unit = <name>" from the loop item plus a shared
+  "owner = LEE practice lab". Units: alpha, bravo, charlie. Re-run: zero changes.
 
 checks:
   - id: vars-loop-playbook-idempotent

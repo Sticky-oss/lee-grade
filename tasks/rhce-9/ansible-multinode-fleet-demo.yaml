@@ -17,13 +17,14 @@ domain: ansible-playbooks
 track: rhce-9
 time_minutes: 25
 description: |
-  Apply the fleet playbook site.yml (run from /home/lee/multinode) to EVERY
-  managed node, idempotently:
+  Provision the whole fleet to spec and prove it on every node, operative. Apply
+  the fleet playbook site.yml (from /home/lee/multinode) to EVERY managed node,
+  idempotently:
     - /etc/lee-fleet is a directory (0755, root:root)
     - /etc/lee-fleet/node.conf (0644, root:root) carries "node = <hostname>"
       and a shared "site = LEE practice lab"
-    - a service account user "leeops" exists (shell /bin/bash)
-  Graded per node: lee-grade reaches node1 and node2 over SSH and verifies the
+    - a service account "leeops" exists (shell /bin/bash)
+  CALYX grades this PER NODE — reaching node1 and node2 over SSH to verify the
   files, the user, its group and membership, and a core mount on each.
 
 checks:

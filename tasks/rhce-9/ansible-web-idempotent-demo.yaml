@@ -15,12 +15,12 @@ domain: ansible-playbooks
 track: rhce-9
 time_minutes: 15
 description: |
-  Write an Ansible playbook web.yml (run from /home/lee/ansible) that brings up
-  a basic web server on the managed host and is fully idempotent:
-    - installs the httpd package
-    - enables httpd and starts it now
-    - deploys /var/www/html/index.html containing "LEE practice lab"
-  A second run of the playbook must report no changes.
+  Stand up a listening post the automated way, operative. Write an idempotent
+  playbook web.yml (from /home/lee/ansible) that brings up a basic web server:
+    - install the httpd package
+    - enable httpd and start it now
+    - deploy /var/www/html/index.html containing "LEE practice lab"
+  A second run must report no changes.
 
 checks:
   - id: web-playbook-idempotent

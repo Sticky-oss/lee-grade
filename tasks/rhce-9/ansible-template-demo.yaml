@@ -17,14 +17,15 @@ domain: ansible-playbooks
 track: rhce-9
 time_minutes: 15
 description: |
-  Write an Ansible playbook site.yml (run from /home/lee/rhce/template) that
-  renders a config file from a Jinja2 template and is fully idempotent:
-    - ensures the directory /etc/lee-demo exists
-    - renders /etc/lee-demo/site.conf (mode 0644, owned by root:root) from a
-      Jinja2 template using playbook variables
-    - defines at least site_name: "LEE practice lab" and max_clients: 200
-  The rendered file must contain a line with the site name and a line like
-  "max_clients 200". A second run of the playbook must report no changes.
+  Codify configuration as data, operative — hand-editing nodes doesn't scale.
+  Write an idempotent playbook site.yml (from /home/lee/rhce/template) that
+  renders a config from a Jinja2 template + variables:
+    - ensure the directory /etc/lee-demo exists
+    - render /etc/lee-demo/site.conf (mode 0644, root:root) from a Jinja2
+      template driven by playbook variables
+    - define at least site_name: "LEE practice lab" and max_clients: 200
+  The file must carry the site name and a "max_clients 200" line. Re-running the
+  playbook must report zero changes — automation you can trust to run twice.
 
 checks:
   - id: template-playbook-idempotent

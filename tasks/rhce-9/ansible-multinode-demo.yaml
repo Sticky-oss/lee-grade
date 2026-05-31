@@ -23,13 +23,13 @@ domain: ansible-playbooks
 track: rhce-9
 time_minutes: 20
 description: |
-  Write an Ansible playbook site.yml (run from /home/lee/multinode) that
-  configures EVERY managed node (node1 and node2) and is fully idempotent:
-    - ensures the directory /etc/lee-fleet exists
-    - deploys /etc/lee-fleet/node.conf containing a line "node = <hostname>"
-      derived from each node's own inventory_hostname, plus a shared
-      "site = LEE practice lab" line
-    - ensures a service account user "leeops" exists on every node
+  Command the whole fleet from one console, operative. Write an idempotent
+  playbook site.yml (from /home/lee/multinode) that converges EVERY managed node
+  (node1 and node2) in a single run:
+    - ensure the directory /etc/lee-fleet exists
+    - deploy /etc/lee-fleet/node.conf with "node = <hostname>" (from each node's
+      own inventory_hostname) plus a shared "site = LEE practice lab"
+    - ensure a service account "leeops" exists on every node
   A second run of the playbook must report no changes on any node.
 
 checks:
