@@ -1,0 +1,27 @@
+# RHCSA (EX200): a POSIX access control list.
+# Worked solution: solutions/solve-rhcsa-practice.sh  (depends on user dba)
+schema_version: 1
+id: rhcsa-acl
+title: Access control list
+domain: permissions
+track: rhcsa-9
+time_minutes: 10
+description: |
+  - Create /srv/reports.
+  - Grant user "dba" an rwx ACL on /srv/reports (in addition to the normal
+    owner/group permissions).
+
+checks:
+  - id: reports-dir
+    description: /srv/reports is a directory
+    hint: 'mkdir -p /srv/reports'
+    type: file
+    path: /srv/reports
+    kind: directory
+
+  - id: dba-acl
+    description: user dba has an rwx ACL entry on /srv/reports
+    hint: 'setfacl -m u:dba:rwx /srv/reports'
+    type: command
+    run: getfacl -p /srv/reports
+    matches: '(?m)^user:dba:rwx'

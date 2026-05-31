@@ -1,0 +1,26 @@
+# RHCSA (EX200): add and persist swap space.
+# Worked solution: solutions/solve-rhcsa-practice.sh
+schema_version: 1
+id: rhcsa-swap
+title: Additional swap space
+domain: storage
+track: rhcsa-9
+time_minutes: 15
+description: |
+  - Provision a 256 MiB swap file at /swapfile (mode 0600) and activate it.
+  - Make it persistent in /etc/fstab.
+
+checks:
+  - id: swapfile-active
+    description: /swapfile is active as swap
+    hint: 'chmod 0600 /swapfile; mkswap /swapfile; swapon /swapfile'
+    type: command
+    run: swapon --show=NAME --noheadings
+    contains: /swapfile
+
+  - id: swapfile-fstab
+    description: /swapfile is listed in /etc/fstab (persistent)
+    hint: 'add "/swapfile none swap defaults 0 0" to /etc/fstab'
+    type: file-content
+    path: /etc/fstab
+    contains: /swapfile

@@ -1,0 +1,27 @@
+# RHCSA (EX200): make the systemd journal persistent.
+# Worked solution: solutions/solve-rhcsa-practice.sh
+schema_version: 1
+id: rhcsa-journald
+title: Persistent system journal
+domain: logging
+track: rhcsa-9
+time_minutes: 10
+description: |
+  Make the systemd journal survive reboots:
+    - /var/log/journal exists as a directory
+    - journald is configured with Storage=persistent
+
+checks:
+  - id: journal-dir
+    description: /var/log/journal exists as a directory
+    hint: 'mkdir -p /var/log/journal && systemctl restart systemd-journald'
+    type: file
+    path: /var/log/journal
+    kind: directory
+
+  - id: journald-storage
+    description: journald is configured for persistent storage
+    hint: 'set Storage=persistent in /etc/systemd/journald.conf'
+    type: file-content
+    path: /etc/systemd/journald.conf
+    matches: '(?m)^Storage=persistent'

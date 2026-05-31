@@ -1,0 +1,27 @@
+# RHCSA (EX200): a tuning profile.
+# Worked solution: solutions/solve-rhcsa-practice.sh
+schema_version: 1
+id: rhcsa-tuned
+title: System tuning profile
+domain: operate-systems
+track: rhcsa-9
+time_minutes: 10
+description: |
+  - Install tuned and ensure the service runs.
+  - Activate the "virtual-guest" tuning profile (appropriate for a VM).
+
+checks:
+  - id: tuned-running
+    description: tuned is enabled and active
+    hint: 'dnf install -y tuned; systemctl enable --now tuned'
+    type: service-state
+    unit: tuned
+    enabled: true
+    active: true
+
+  - id: tuned-profile
+    description: the active tuning profile is virtual-guest
+    hint: 'tuned-adm profile virtual-guest'
+    type: command
+    run: tuned-adm active
+    contains: virtual-guest

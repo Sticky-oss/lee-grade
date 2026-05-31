@@ -1,0 +1,27 @@
+# RHCSA (EX200): time synchronization and timezone.
+# Worked solution: solutions/solve-rhcsa-practice.sh
+schema_version: 1
+id: rhcsa-time
+title: Time service and timezone
+domain: time-service
+track: rhcsa-9
+time_minutes: 10
+description: |
+  - Ensure chronyd (the NTP client) is enabled at boot and running now.
+  - Set the system timezone to America/Toronto.
+
+checks:
+  - id: chronyd-running
+    description: chronyd is enabled and active
+    hint: 'systemctl enable --now chronyd'
+    type: service-state
+    unit: chronyd
+    enabled: true
+    active: true
+
+  - id: timezone
+    description: the system timezone is America/Toronto
+    hint: 'timedatectl set-timezone America/Toronto'
+    type: command
+    run: timedatectl show -p Timezone --value
+    equals: America/Toronto

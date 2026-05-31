@@ -1,0 +1,18 @@
+# RHCSA (EX200): set the default boot target.
+# Worked solution: solutions/solve-rhcsa-practice.sh
+schema_version: 1
+id: rhcsa-boot-target
+title: Default boot target
+domain: operate-systems
+track: rhcsa-9
+time_minutes: 5
+description: |
+  Set the system's default boot target to multi-user.target (text mode, no GUI).
+
+checks:
+  - id: default-target
+    description: the default boot target is multi-user.target
+    hint: 'systemctl set-default multi-user.target'
+    type: command
+    run: systemctl get-default
+    equals: multi-user.target
