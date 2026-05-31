@@ -13,15 +13,17 @@ description: |
 
 checks:
   - id: no-root-login
-    description: direct root SSH login is disabled
-    hint: "add 'PermitRootLogin no' to /etc/ssh/sshd_config.d/99-hardening.conf"
-    type: file-content
-    path: /etc/ssh/sshd_config.d/99-hardening.conf
-    matches: '(?mi)^\s*PermitRootLogin\s+no'
+    description: direct root SSH login is disabled (effective sshd config)
+    hint: "add 'PermitRootLogin no' to /etc/ssh/sshd_config.d/99-hardening.conf; verify with: sshd -T | grep permitrootlogin"
+    why: "sshd -T prints the EFFECTIVE merged config (every drop-in, and only if it parses cleanly). It catches a drop-in that was written but placed wrong or breaks sshd -t — which a plain file-text match would not."
+    type: command
+    run: "sshd -T 2>/dev/null | grep -i permitrootlogin"
+    matches: '(?i)permitrootlogin\s+no'
 
   - id: no-password-auth
-    description: password authentication is disabled (keys only)
-    hint: "add 'PasswordAuthentication no' to the same drop-in"
-    type: file-content
-    path: /etc/ssh/sshd_config.d/99-hardening.conf
-    matches: '(?mi)^\s*PasswordAuthentication\s+no'
+    description: password authentication is disabled (effective sshd config)
+    hint: "add 'PasswordAuthentication no' to the same drop-in; verify with: sshd -T | grep passwordauthentication"
+    why: "Same reason: sshd -T reflects the live effective setting, so a line written in a file sshd ignores (or that fails sshd -t) will not pass."
+    type: command
+    run: "sshd -T 2>/dev/null | grep -i passwordauthentication"
+    matches: '(?i)passwordauthentication\s+no'

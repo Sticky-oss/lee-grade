@@ -33,9 +33,8 @@ checks:
     fstype: xfs
 
   - id: data-in-fstab
-    description: /mnt/data is listed in /etc/fstab (persistent)
-    hint: 'add a /mnt/data line to /etc/fstab so it mounts on boot'
-    why: "Persistence lives in /etc/fstab; without an entry the mount won't return on boot (the #1 RHCSA trap). Verify with 'mount -a' before trusting it."
-    type: file-content
-    path: /etc/fstab
-    contains: /mnt/data
+    description: /mnt/data has a real persistent entry in /etc/fstab
+    hint: 'add a real (non-comment) /mnt/data line to /etc/fstab; check it parses with: findmnt -s /mnt/data'
+    why: "Persistence lives in /etc/fstab, but a substring is not enough: the line must be a VALID entry findmnt can parse. A '# /mnt/data' comment would fool a text match yet never mount. Test the whole file with 'mount -a' before trusting it."
+    type: command
+    run: findmnt --fstab /mnt/data

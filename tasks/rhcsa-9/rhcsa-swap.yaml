@@ -22,9 +22,8 @@ checks:
     contains: /swapfile
 
   - id: swapfile-fstab
-    description: /swapfile is listed in /etc/fstab (persistent)
-    hint: 'add "/swapfile none swap defaults 0 0" to /etc/fstab'
-    why: "Like any mount, swap re-activates on boot only via an /etc/fstab entry."
-    type: file-content
-    path: /etc/fstab
-    contains: /swapfile
+    description: /swapfile has a real swap entry in /etc/fstab
+    hint: 'add a real line "/swapfile none swap defaults 0 0" to /etc/fstab (not a comment)'
+    why: "Swap re-activates on boot only via a real /etc/fstab swap line; a commented or malformed entry would pass a substring match but never enable on reboot."
+    type: command
+    run: "grep -qE '^/swapfile[[:space:]].*swap' /etc/fstab"
