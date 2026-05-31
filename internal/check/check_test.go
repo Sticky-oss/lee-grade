@@ -128,7 +128,7 @@ func TestRunTask_percentCalculation(t *testing.T) {
 
 func TestRegisteredTypes_includesCoreSet(t *testing.T) {
 	types := RegisteredTypes()
-	want := []string{"file", "file-content", "user", "group", "user-in-group", "service-state", "package-installed", "mount", "selinux", "firewall", "cron-job", "ansible-playbook"}
+	want := []string{"file", "file-content", "user", "group", "user-in-group", "service-state", "package-installed", "mount", "selinux", "firewall", "cron-job", "ansible-playbook", "command"}
 	got := make(map[string]bool, len(types))
 	for _, t := range types {
 		got[t] = true

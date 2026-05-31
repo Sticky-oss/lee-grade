@@ -114,4 +114,5 @@ var remoteCapable = map[string]bool{
 	"group":             true,
 	"user-in-group":     true,
 	"mount":             true,
+	"command":           true,
 }
