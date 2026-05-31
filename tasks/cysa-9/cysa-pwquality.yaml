@@ -1,0 +1,27 @@
+# CySA+ track: enforce password strength.
+schema_version: 1
+id: cysa-pwquality
+title: Enforce password strength
+domain: secure-configuration
+track: cysa-9
+time_minutes: 10
+description: |
+  Weak credentials are how cells fall, operative. Set a strength baseline in
+  /etc/security/pwquality.conf:
+    - minimum length 12      (minlen = 12)
+    - require a digit        (dcredit = -1)
+
+checks:
+  - id: pw-minlen
+    description: minimum password length is 12
+    hint: "set 'minlen = 12' in /etc/security/pwquality.conf"
+    type: file-content
+    path: /etc/security/pwquality.conf
+    matches: '(?m)^\s*minlen\s*=\s*12'
+
+  - id: pw-dcredit
+    description: at least one digit is required (dcredit = -1)
+    hint: "set 'dcredit = -1' in /etc/security/pwquality.conf"
+    type: file-content
+    path: /etc/security/pwquality.conf
+    matches: '(?m)^\s*dcredit\s*=\s*-1'

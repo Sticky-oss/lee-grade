@@ -1,0 +1,15 @@
+# Sample CySA+ sitting: the security-hardening directives graded as one timed
+# exam against a 70% cut. (The two incident-response directives — rogue-account,
+# suid — are lab-only, since they need a planted problem to remediate.)
+# Run on the Rocky 9 VM as root: sudo lee-grade exam start exams/cysa-9-sample.yaml
+schema_version: 1
+id: cysa-9-sample
+title: CySA+ — security operations sitting
+track: cysa-9
+time_minutes: 60
+pass_percent: 70
+tasks:
+  - ../tasks/cysa-9/cysa-auditd.yaml
+  - ../tasks/cysa-9/cysa-ssh-hardening.yaml
+  - ../tasks/cysa-9/cysa-pwquality.yaml
+  - ../tasks/cysa-9/cysa-sysctl.yaml

@@ -1,0 +1,22 @@
+# CySA+ track: strip a planted SUID backdoor.
+# (lab start plants the setuid binary; this is a remediation directive.)
+schema_version: 1
+id: cysa-suid
+title: Strip a planted SUID backdoor
+domain: incident-response
+track: cysa-9
+time_minutes: 10
+description: |
+  CALYX found a setuid-root binary dropped at /usr/local/bin/suspect — a
+  privilege-escalation backdoor. Neutralize it without destroying evidence:
+    - remove the setuid bit so the file is mode 0755 (keep it for forensics)
+  Audit SUID files:  find / -perm -4000 -type f 2>/dev/null
+
+checks:
+  - id: suid-stripped
+    description: /usr/local/bin/suspect no longer carries the setuid bit (mode 0755)
+    hint: 'chmod 0755 /usr/local/bin/suspect   (or chmod u-s)'
+    type: file
+    path: /usr/local/bin/suspect
+    mode: 0755
+    kind: file

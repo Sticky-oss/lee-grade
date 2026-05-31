@@ -1,0 +1,27 @@
+# CySA+ track: kernel network hardening.
+schema_version: 1
+id: cysa-sysctl
+title: Kernel network hardening
+domain: secure-configuration
+track: cysa-9
+time_minutes: 15
+description: |
+  Stop the kernel from trusting the wire, operative. Disable acceptance of ICMP
+  redirects — a classic man-in-the-middle vector — and make it stick:
+    - net.ipv4.conf.all.accept_redirects = 0 in the running kernel
+    - persisted under /etc/sysctl.d/
+
+checks:
+  - id: redirects-runtime
+    description: the kernel is not accepting ICMP redirects
+    hint: 'sysctl -w net.ipv4.conf.all.accept_redirects=0 (then persist + sysctl --system)'
+    type: command
+    run: sysctl -n net.ipv4.conf.all.accept_redirects
+    equals: "0"
+
+  - id: redirects-persistent
+    description: the hardening is persisted under /etc/sysctl.d
+    hint: "echo 'net.ipv4.conf.all.accept_redirects = 0' > /etc/sysctl.d/99-hardening.conf"
+    type: file-content
+    path: /etc/sysctl.d/99-hardening.conf
+    matches: 'accept_redirects'

@@ -1,0 +1,27 @@
+# CySA+ track: harden the remote-access channel.
+schema_version: 1
+id: cysa-ssh-hardening
+title: Harden the remote-access channel
+domain: secure-configuration
+track: cysa-9
+time_minutes: 15
+description: |
+  The SSH channel is the front door, operative — bar it. In a drop-in config
+  /etc/ssh/sshd_config.d/99-hardening.conf, enforce:
+    - PermitRootLogin no      (no direct root logins)
+    - PasswordAuthentication no   (keys only — kills brute-force)
+
+checks:
+  - id: no-root-login
+    description: direct root SSH login is disabled
+    hint: "add 'PermitRootLogin no' to /etc/ssh/sshd_config.d/99-hardening.conf"
+    type: file-content
+    path: /etc/ssh/sshd_config.d/99-hardening.conf
+    matches: '(?mi)^\s*PermitRootLogin\s+no'
+
+  - id: no-password-auth
+    description: password authentication is disabled (keys only)
+    hint: "add 'PasswordAuthentication no' to the same drop-in"
+    type: file-content
+    path: /etc/ssh/sshd_config.d/99-hardening.conf
+    matches: '(?mi)^\s*PasswordAuthentication\s+no'

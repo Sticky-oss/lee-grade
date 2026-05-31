@@ -1,0 +1,21 @@
+# CySA+ track: incident response — rogue superuser.
+# (lab start plants the backdoor; this is a detect-and-remove directive.)
+schema_version: 1
+id: cysa-rogue-account
+title: Incident response — rogue superuser
+domain: incident-response
+track: cysa-9
+time_minutes: 10
+description: |
+  ALERT, operative. CALYX flagged an unauthorized account on this node carrying
+  UID 0 — root-equivalent. It is a backdoor. Hunt it down and remove it:
+    - no account other than "root" may hold UID 0
+  Find it:  awk -F: '$3==0' /etc/passwd
+
+checks:
+  - id: no-rogue-uid0
+    description: no non-root account holds UID 0
+    hint: "userdel the rogue UID-0 account you find in /etc/passwd"
+    type: command
+    run: "awk -F: '$3==0 && $1!=\"root\"{exit 1}' /etc/passwd"
+    exit: 0

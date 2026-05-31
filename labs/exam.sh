@@ -14,6 +14,7 @@ resolve(){ case "$1" in
   rhcsa|rhcsa-sample)                 echo "$EXDIR/rhcsa-9-sample.yaml" ;;
   rhcsa-full|rhcsa-practice|practice) echo "$EXDIR/rhcsa-9-practice.yaml" ;;
   rhce|rhce-sample)                   echo "$EXDIR/rhce-9-sample.yaml" ;;
+  cysa|cysa-sample)                   echo "$EXDIR/cysa-9-sample.yaml" ;;
   *)                                  echo "" ;;
 esac; }
 
@@ -22,6 +23,7 @@ usage(){
   printf '  %sexam rhcsa%s        sit the RHCSA sample (6 directives)\n' "$G" "$R"
   printf '  %sexam rhcsa-full%s   sit the full RHCSA practice (12 directives)\n' "$G" "$R"
   printf '  %sexam rhce%s         sit the RHCE certification\n' "$G" "$R"
+  printf '  %sexam cysa%s         sit the CySA+ security-ops certification\n' "$G" "$R"
   printf '  %sexam status%s       time remaining + objectives\n' "$G" "$R"
   printf '  %sexam grade%s        submit for scoring\n' "$G" "$R"
   printf '  %sexam reset%s        abandon the current sitting\n' "$G" "$R"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lab — CALYX field-training harness for the lee-grade tracks (RHCSA + RHCE).
+# lab — CALYX field-training harness for the lee-grade tracks (RHCSA/RHCE/CySA+).
 # Installed on the VM as /usr/local/bin/lab.
 #
 #   lab list                     show the available directives, by track
@@ -15,6 +15,7 @@ set -uo pipefail
 BIN=/home/lee/payload/lee-grade
 RHCSA_DIR=/home/lee/payload/rhcsa-tasks
 RHCE_DIR=/home/lee/payload/tasks
+CYSA_DIR=/home/lee/payload/cysa-tasks
 
 C=$'\e[96m'; G=$'\e[92m'; Y=$'\e[93m'; M=$'\e[1;95m'; R=$'\e[0m'; B=$'\e[1m'; D=$'\e[2m'
 die(){ echo "lab: $*" >&2; exit 2; }
@@ -26,7 +27,9 @@ if [ "$(id -u)" -ne 0 ]; then exec sudo "$0" "$@"; fi
 declare -A TRACK FILE WORK KIT
 RHCSA=(users-sudo shared-dir cron web-firewall selinux storage boot-target time tuned swap journald acl)
 RHCE=(template handler vars role web)
+CYSA=(auditd ssh-hardening pwquality sysctl rogue-account suid)
 for t in "${RHCSA[@]}"; do TRACK[$t]=rhcsa; FILE[$t]="$RHCSA_DIR/rhcsa-$t.yaml"; done
+for t in "${CYSA[@]}";  do TRACK[$t]=cysa;  FILE[$t]="$CYSA_DIR/cysa-$t.yaml"; done
 reg_rhce(){ TRACK[$1]=rhce; FILE[$1]="$RHCE_DIR/$2"; WORK[$1]="$3"; KIT[$1]="$4"; }
 reg_rhce template ansible-template-demo.yaml       /home/lee/rhce/template /home/lee/kit/template
 reg_rhce handler  ansible-handler-demo.yaml        /home/lee/rhce/handler  /home/lee/kit/handler
@@ -82,6 +85,27 @@ t_acl_cleanup(){ rm -rf /srv/reports; userdel -r dba 2>/dev/null; true; }
 t_acl_setup(){ t_acl_cleanup; id dba >/dev/null 2>&1 || useradd -u 3001 -s /bin/bash dba; true; }
 t_acl_solve(){ mkdir -p /srv/reports; setfacl -m u:dba:rwx /srv/reports 2>/dev/null; }
 
+# ════════════════════════ CySA+ per-task hooks ════════════════════════
+t_auditd_cleanup(){ rm -f /etc/audit/rules.d/lee.rules; augenrules --load >/dev/null 2>&1; true; }
+t_auditd_solve(){ echo '-w /etc/sudoers -p wa -k sudoers' > /etc/audit/rules.d/lee.rules; augenrules --load >/dev/null 2>&1; }
+
+t_ssh_hardening_cleanup(){ rm -f /etc/ssh/sshd_config.d/99-hardening.conf; true; }
+t_ssh_hardening_solve(){ printf 'PermitRootLogin no\nPasswordAuthentication no\n' > /etc/ssh/sshd_config.d/99-hardening.conf; }
+
+t_pwquality_cleanup(){ sed -i '/^minlen[[:space:]]*=[[:space:]]*12/d; /^dcredit[[:space:]]*=[[:space:]]*-1/d' /etc/security/pwquality.conf 2>/dev/null; true; }
+t_pwquality_solve(){ t_pwquality_cleanup; printf 'minlen = 12\ndcredit = -1\n' >> /etc/security/pwquality.conf; }
+
+t_sysctl_cleanup(){ rm -f /etc/sysctl.d/99-hardening.conf; sysctl -w net.ipv4.conf.all.accept_redirects=1 >/dev/null 2>&1; true; }
+t_sysctl_solve(){ echo 'net.ipv4.conf.all.accept_redirects = 0' > /etc/sysctl.d/99-hardening.conf; sysctl --system >/dev/null 2>&1; }
+
+t_rogue_account_cleanup(){ userdel -f shadow 2>/dev/null; true; }
+t_rogue_account_setup(){ t_rogue_account_cleanup; useradd -o -u 0 -M -s /sbin/nologin shadow 2>/dev/null; true; }
+t_rogue_account_solve(){ userdel -f shadow 2>/dev/null; true; }
+
+t_suid_cleanup(){ rm -f /usr/local/bin/suspect; true; }
+t_suid_setup(){ t_suid_cleanup; cp /bin/cat /usr/local/bin/suspect; chmod 4755 /usr/local/bin/suspect; true; }
+t_suid_solve(){ chmod 0755 /usr/local/bin/suspect; }
+
 # ════════════════════════ RHCE (Ansible) hooks ════════════════════════
 # Single-node Ansible directives: the operative writes a playbook in the work
 # dir (inventory + ansible.cfg are provided); grade runs it. solve drops the
@@ -105,7 +129,7 @@ cmd_grade(){ "$BIN" --task "$(taskfile "$1")"; }
 cmd_start(){ do_setup "$1"; printf '%s▸ lab started%s — clean slate laid down for this directive.\n\n' "$G" "$R"; cmd_brief "$1"; printf '\n  %sWork the objectives, then:%s  %slab grade %s%s   (guided walk: %slab guided %s%s)\n' "$D" "$R" "$B" "$1" "$R" "$B" "$1" "$R"; }
 cmd_solve(){ do_solve "$1"; printf '%sapplied the worked solution for %s. Grade with:  lab grade %s%s\n' "$Y" "$1" "$1" "$R"; }
 cmd_finish(){ do_cleanup "$1"; printf '%s▸ directive %s reset to baseline.%s\n' "$G" "$1" "$R"; }
-cmd_reset(){ local t; for t in "${RHCSA[@]}" "${RHCE[@]}"; do do_cleanup "$t"; done; printf '%s▸ all directives reset to baseline.%s\n' "$G" "$R"; }
+cmd_reset(){ local t; for t in "${RHCSA[@]}" "${RHCE[@]}" "${CYSA[@]}"; do do_cleanup "$t"; done; printf '%s▸ all directives reset to baseline.%s\n' "$G" "$R"; }
 
 cmd_guided(){
   do_setup "$1"
@@ -129,6 +153,8 @@ cmd_list(){
   local t; for t in "${RHCSA[@]}"; do printf '    %s%-13s%s %s%s%s\n' "$G" "$t" "$R" "$D" "$(title_of "$t")" "$R"; done
   printf '\n  %sRHCE (EX294)%s\n' "$C" "$R"
   for t in "${RHCE[@]}"; do printf '    %s%-13s%s %s%s%s\n' "$G" "$t" "$R" "$D" "$(title_of "$t")" "$R"; done
+  printf '\n  %sCySA+ (security ops)%s\n' "$C" "$R"
+  for t in "${CYSA[@]}"; do printf '    %s%-13s%s %s%s%s\n' "$G" "$t" "$R" "$D" "$(title_of "$t")" "$R"; done
   printf '\nusage: %slab {brief|start|guided|grade|solve|finish} <id>%s   ·   %slab reset%s\n' "$B" "$R" "$B" "$R"
 }
 
@@ -138,7 +164,7 @@ case "$verb" in
   reset|reset-all) cmd_reset ;;
   brief|start|guided|grade|solve|finish)
     t=${2:-}; [ -n "$t" ] || die "usage: lab $verb <id>  (see: lab list)"
-    t=${t#rhcsa-}; t=${t#rhce-}; known "$t" || die "unknown directive '$t' (see: lab list)"
+    t=${t#rhcsa-}; t=${t#rhce-}; t=${t#cysa-}; known "$t" || die "unknown directive '$t' (see: lab list)"
     case "$verb" in
       brief)  cmd_brief  "$t" ;;
       start)  cmd_start  "$t" ;;

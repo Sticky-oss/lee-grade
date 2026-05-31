@@ -1,0 +1,36 @@
+# CySA+ track: audit the privilege boundary.
+schema_version: 1
+id: cysa-auditd
+title: Audit the privilege boundary
+domain: security-monitoring
+track: cysa-9
+time_minutes: 15
+description: |
+  Visibility is survival, operative. If someone touches the sudoers file, CALYX
+  needs to know the instant it happens. Wire up the audit subsystem to watch it:
+    - auditd is running
+    - a persistent rule in /etc/audit/rules.d/ watches /etc/sudoers for write
+      and attribute changes
+    - the rule is live in the running audit ruleset
+
+checks:
+  - id: auditd-running
+    description: the audit daemon is running
+    hint: 'auditd runs by default on RHEL 9 — confirm with: systemctl is-active auditd'
+    type: service-state
+    unit: auditd
+    active: true
+
+  - id: sudoers-rule-persistent
+    description: a persistent audit rule watches /etc/sudoers
+    hint: "echo '-w /etc/sudoers -p wa -k sudoers' > /etc/audit/rules.d/lee.rules"
+    type: file-content
+    path: /etc/audit/rules.d/lee.rules
+    matches: '/etc/sudoers'
+
+  - id: sudoers-rule-loaded
+    description: the sudoers watch is live in the running ruleset
+    hint: 'augenrules --load, then verify with: auditctl -l'
+    type: command
+    run: auditctl -l
+    contains: /etc/sudoers
